@@ -625,7 +625,7 @@ export default function ProdiDashboardPage() {
                 className="w-full h-2.5 rounded-full bg-slate-950/50 overflow-hidden p-0.5 border border-white/10"
               >
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-[#e4e8f0] to-white transition-all duration-500"
+                  className="h-full rounded-full bg-linear-to-r from-[#e4e8f0] to-white transition-all duration-500"
                   style={{ width: `${progressPercentage}%` }}
                 />
               </div>

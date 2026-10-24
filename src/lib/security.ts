@@ -4,9 +4,9 @@
 export const MAX_PDF_SIZE_BYTES = 5 * 1024 * 1024; // 5,242,880 bytes
 
 /**
- * Sanitasi teks secara ketat untuk mencegah Cross-Site Scripting (XSS).
- * Menghapus seluruh tag HTML/script, protokol berbahaya, dan karakter kontrol
- * sebelum dirender sebagai plain text di JSX (tanpa dangerouslySetInnerHTML).
+ * Sanitasi teks secara ketat untuk mencegah Cross-Site Scripting (XSS) dan Injection.
+ * Menghapus seluruh tag HTML/script, event handler inline, protokol berbahaya,
+ * dan karakter kontrol sebelum dirender sebagai plain text atau dikirim ke API.
  */
 export function sanitizePlainText(input: unknown): string {
   if (typeof input !== "string") {
@@ -18,9 +18,71 @@ export function sanitizePlainText(input: unknown): string {
     .replace(/<[^>]*>?/gm, "")
     // Hapus pola skema URI berbahaya
     .replace(/(javascript|data|vbscript)\s*:/gi, "")
+    // Hapus pola event handler inline (misal: onload=, onerror=)
+    .replace(/\bon\w+\s*=/gi, "")
     // Hapus karakter kontrol non-printable kecuali newline dan tab
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
     .trim();
+}
+
+export interface RejectionSanitizeResult {
+  valid: boolean;
+  sanitized: string;
+  error?: string;
+}
+
+/**
+ * Validasi dan sanitasi ketat input "Alasan Penolakan" (Catatan Revisi) dari Admin
+ * sebelum dikirim via API untuk mencegah XSS dan SQL/Command Injection.
+ */
+export function validateAndSanitizeRejectionReason(
+  rawInput: string
+): RejectionSanitizeResult {
+  const sanitized = sanitizePlainText(rawInput)
+    // Reduksi spasi/baris berlebih
+    .replace(/\s{3,}/g, "  ");
+
+  if (!sanitized) {
+    return {
+      valid: false,
+      sanitized: "",
+      error: "Alasan penolakan wajib diisi sebelum menolak dokumen.",
+    };
+  }
+
+  if (sanitized.length < 10) {
+    return {
+      valid: false,
+      sanitized,
+      error:
+        "Alasan penolakan terlalu singkat (minimal 10 karakter agar jelas bagi Operator Prodi).",
+    };
+  }
+
+  if (sanitized.length > 1000) {
+    return {
+      valid: false,
+      sanitized: sanitized.slice(0, 1000),
+      error: "Alasan penolakan maksimal 1000 karakter.",
+    };
+  }
+
+  // Deteksi pola SQL Injection mencurigakan
+  const sqlInjectionPattern =
+    /(\b(UNION\s+SELECT|DROP\s+TABLE|ALTER\s+TABLE|INSERT\s+INTO|DELETE\s+FROM)\b|--\s|;\s*DROP)/i;
+  if (sqlInjectionPattern.test(sanitized)) {
+    return {
+      valid: false,
+      sanitized: "",
+      error:
+        "Input mengandung pola karakter atau instruksi yang dilarang oleh kebijakan keamanan sistem.",
+    };
+  }
+
+  return {
+    valid: true,
+    sanitized,
+  };
 }
 
 export interface FileValidationResult {
@@ -57,7 +119,8 @@ export function validatePdfFileSync(
   }
 
   // Cegah double-extension berbahaya (contoh: shell.php.pdf atau script.js.pdf)
-  const dangerousDoubleExt = /\.(php|phtml|exe|sh|bat|cmd|js|jsp|asp|aspx|py|pl|cgi|html|htm)\.pdf$/i;
+  const dangerousDoubleExt =
+    /\.(php|phtml|exe|sh|bat|cmd|js|jsp|asp|aspx|py|pl|cgi|html|htm)\.pdf$/i;
   if (dangerousDoubleExt.test(lowerName)) {
     return {
       valid: false,
@@ -109,7 +172,7 @@ export async function verifyPdfMagicBytes(file: File): Promise<boolean> {
       bytes[0] === 0x25 && // %
       bytes[1] === 0x50 && // P
       bytes[2] === 0x44 && // D
-      bytes[3] === 0x46    // F
+      bytes[3] === 0x46 // F
     );
   } catch {
     return false;

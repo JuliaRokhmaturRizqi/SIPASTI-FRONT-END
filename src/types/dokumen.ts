@@ -36,3 +36,40 @@ export interface DokumenUploadResponse {
   message: string;
   data?: DokumenApiRecord;
 }
+
+/**
+ * Tipe Data untuk Matriks Pemantauan Admin (/admin/dashboard)
+ */
+export interface AdminMatrixCell {
+  id: number;
+  tahap_dokumen: TahapDokumenNumber;
+  status: DokumenStatus;
+  catatan_revisi: string | null;
+  tanggal_upload: string | null;
+  has_file?: boolean;
+}
+
+export interface AdminProdiRow {
+  id_prodi: number;
+  nama_prodi: string;
+  tahapan: Record<TahapDokumenNumber, AdminMatrixCell>;
+}
+
+export interface AdminMatrixResponse {
+  status: "success" | "error";
+  periode_aktif: string;
+  data: AdminProdiRow[];
+}
+
+export interface AdminValidasiResponse {
+  status: "success" | "error";
+  message: string;
+  data: {
+    id: number;
+    id_prodi: number;
+    tahap_dokumen: TahapDokumenNumber;
+    status: DokumenStatus;
+    catatan_revisi: string | null;
+    tanggal_upload: string | null;
+  };
+}
