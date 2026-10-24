@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SIPAT - Sistem Pelaporan Administrasi Terintegrasi",
+  title: "SIPASTI - Sistem Pelaporan Administrasi Terintegrasi",
   description:
     "Portal Sistem Pelaporan Administrasi Terintegrasi untuk Manajemen Periode Akademik dan Dokumen Pelaporan Program Studi.",
 };

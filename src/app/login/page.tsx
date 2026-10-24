@@ -5,17 +5,11 @@ import { useRouter } from "next/navigation";
 import { AxiosError } from "axios";
 import {
   AlertCircle,
-  ArrowRight,
-  Building2,
   CheckCircle2,
   Clock,
   Eye,
   EyeOff,
-  FileCheck2,
   Loader2,
-  Lock,
-  ShieldCheck,
-  User,
 } from "lucide-react";
 import {
   getAuthSession,
@@ -140,328 +134,184 @@ export default function LoginPage() {
   const isFormDisabled = isLoading || isSuccess || retryCountdown > 0;
 
   return (
-    <div className="min-h-screen w-full flex flex-col lg:flex-row bg-slate-50">
-      {/* Panel Kiri: Branding & Informasi Sistem (Deep Blue #0D47A1 + Golden Yellow #FBC02D) */}
-      <div className="relative lg:w-7/12 xl:w-1/2 bg-[#0D47A1] text-white flex flex-col justify-between p-8 sm:p-12 lg:p-16 overflow-hidden">
-        {/* Dekorasi Latar Geometris */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-24 -left-24 w-96 h-96 rounded-full bg-[#1565C0] opacity-50 blur-3xl"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute bottom-0 right-0 w-[28rem] h-[28rem] rounded-full bg-[#FBC02D]/15 blur-3xl"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:24px_24px] opacity-10"
-        />
+    <main className="relative min-h-screen w-full flex flex-col items-center justify-center px-4 py-12 overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
+      {/* Ambient Mesh Gradient Orbs untuk menonjolkan efek Glassmorphism */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full bg-blue-600/20 blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-indigo-500/15 blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[30rem] w-[30rem] rounded-full bg-blue-800/10 blur-3xl"
+      />
 
-        {/* Header Branding */}
-        <div className="relative z-10 flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-xl bg-[#FBC02D] text-[#0D47A1] flex items-center justify-center shadow-lg shadow-black/20 font-bold">
-            <Building2 className="w-7 h-7 stroke-[2.2]" />
-          </div>
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-widest text-[#FBC02D]">
-              Portal Akademik Resmi
-            </span>
-            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white">
-              SIPAT — Administrasi Terintegrasi
-            </h1>
-          </div>
-        </div>
-
-        {/* Konten Utama Hero Kiri */}
-        <div className="relative z-10 my-10 lg:my-auto max-w-xl">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm mb-6">
-            <span className="w-2 h-2 rounded-full bg-[#FBC02D] animate-pulse" />
-            <span className="text-xs font-medium text-blue-100">
-              Monitoring & Evaluasi Pelaporan Program Studi
-            </span>
-          </div>
-
-          <h2 className="text-3xl sm:text-4xl lg:text-[2.5rem] font-extrabold leading-tight tracking-tight mb-5">
-            Sistem Pelaporan{" "}
-            <span className="text-[#FBC02D] underline decoration-[#FBC02D]/40 decoration-wavy underline-offset-8">
-              Administrasi
-            </span>{" "}
-            Terintegrasi
-          </h2>
-
-          <p className="text-blue-100/90 text-sm sm:text-base leading-relaxed mb-8">
-            Platform terpusat untuk pengelolaan periode akademik, pengunggahan
-            dokumen pelaporan bertahap (Tahap 1 s.d. Tahap 4), serta verifikasi
-            dan validasi pemenuhan standar administrasi Program Studi.
+      {/* Centered Glassmorphism Card */}
+      <div className="relative z-10 w-full max-w-md bg-white/10 backdrop-blur-lg border border-white/20 shadow-2xl rounded-2xl p-8 sm:p-10">
+        {/* Header Card */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+            SIPASTI
+          </h1>
+          <p className="mt-2 text-sm text-slate-300">
+            Sistem Pelaporan Administrasi Terintegrasi
           </p>
-
-          {/* Kartu Fitur Utama */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="p-4 rounded-xl bg-white/10 border border-white/10 backdrop-blur-sm flex items-start gap-3.5">
-              <div className="p-2.5 rounded-lg bg-[#FBC02D]/20 text-[#FBC02D] shrink-0">
-                <FileCheck2 className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-sm text-white">
-                  Pelaporan 4 Tahap
-                </h3>
-                <p className="text-xs text-blue-100/80 mt-1 leading-relaxed">
-                  Alur pengumpulan dokumen terstruktur sesuai siklus periode
-                  akademik aktif.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-white/10 border border-white/10 backdrop-blur-sm flex items-start gap-3.5">
-              <div className="p-2.5 rounded-lg bg-[#FBC02D]/20 text-[#FBC02D] shrink-0">
-                <ShieldCheck className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-sm text-white">
-                  Otorisasi Terproteksi
-                </h3>
-                <p className="text-xs text-blue-100/80 mt-1 leading-relaxed">
-                  Keamanan berbasis token Sanctum dengan pemisahan hak akses
-                  Admin &amp; Prodi.
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
 
-        {/* Footer Kiri */}
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-6 border-t border-white/15 text-xs text-blue-200">
-          <span>
-            &copy; {new Date().getFullYear()} Sistem Pelaporan Administrasi
-            Terintegrasi
-          </span>
-          <span className="flex items-center gap-1.5 text-[#FBC02D] font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#FBC02D]" />
-            Terhubung ke REST API v1.0
-          </span>
-        </div>
-      </div>
-
-      {/* Panel Kanan: Form Autentikasi Login */}
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-10 lg:p-16">
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl shadow-slate-200/70 border border-slate-100 p-7 sm:p-10 relative overflow-hidden">
-          {/* Aksen Garis Atas Deep Blue & Golden Yellow */}
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0D47A1] via-[#1565C0] to-[#FBC02D]" />
-
-          {/* Header Form */}
-          <div className="mb-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#0D47A1]/8 text-[#0D47A1] text-xs font-semibold mb-3">
-              <Lock className="w-3.5 h-3.5 text-[#FBC02D] fill-[#FBC02D]" />
-              Autentikasi Pengguna
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-              Selamat Datang
-            </h2>
-            <p className="text-sm text-slate-500 mt-1.5">
-              Silakan masuk menggunakan akun Administrator atau Program Studi
-              Anda.
-            </p>
-          </div>
-
-          {/* Notifikasi Error / Rate Limit 429 */}
-          {errorMessage && (
-            <div
-              role="alert"
-              className={`mb-6 rounded-xl border p-4 flex items-start gap-3 transition-all ${
-                errorType === "ratelimit"
-                  ? "bg-amber-50 border-amber-300 text-amber-900"
-                  : "bg-red-50 border-red-200 text-red-800"
-              }`}
-            >
-              {errorType === "ratelimit" ? (
-                <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-              ) : (
-                <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+        {/* Notifikasi Error / Rate Limit 429 */}
+        {errorMessage && (
+          <div
+            role="alert"
+            className={`mb-6 rounded-xl border p-3.5 flex items-start gap-3 text-xs sm:text-sm backdrop-blur-md transition-all ${
+              errorType === "ratelimit"
+                ? "bg-amber-500/15 border-amber-400/40 text-amber-100"
+                : "bg-red-500/15 border-red-400/40 text-red-100"
+            }`}
+          >
+            {errorType === "ratelimit" ? (
+              <Clock className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-red-300 shrink-0 mt-0.5" />
+            )}
+            <div className="flex-1">
+              <p className="leading-relaxed">{errorMessage}</p>
+              {errorType === "ratelimit" && retryCountdown > 0 && (
+                <p className="mt-1.5 font-mono text-xs text-amber-200 font-medium">
+                  Coba lagi dalam {retryCountdown} detik
+                </p>
               )}
-              <div className="flex-1 text-xs sm:text-sm">
-                <p className="font-semibold">
-                  {errorType === "ratelimit"
-                    ? "Batas Percobaan Login Terlampaui (429)"
-                    : errorType === "network"
-                    ? "Gangguan Koneksi Server"
-                    : "Autentikasi Gagal"}
-                </p>
-                <p className="mt-1 leading-relaxed opacity-90">
-                  {errorMessage}
-                </p>
-                {errorType === "ratelimit" && retryCountdown > 0 && (
-                  <div className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-200/70 text-amber-950 font-mono text-xs font-semibold">
-                    <span>Coba lagi dalam:</span>
-                    <span>{retryCountdown} detik</span>
-                  </div>
-                )}
-              </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Notifikasi Sukses */}
-          {isSuccess && (
-            <div
-              role="status"
-              className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 flex items-center gap-3 text-emerald-800"
+        {/* Notifikasi Sukses */}
+        {isSuccess && (
+          <div
+            role="status"
+            className="mb-6 rounded-xl border border-emerald-400/40 bg-emerald-500/15 p-3.5 flex items-center gap-3 text-xs sm:text-sm text-emerald-100 backdrop-blur-md"
+          >
+            <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0" />
+            <span>Login berhasil. Mengalihkan ke dashboard...</span>
+          </div>
+        )}
+
+        {/* Form Login */}
+        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+          {/* Input Username */}
+          <div>
+            <label
+              htmlFor="username"
+              className="block text-xs font-medium text-white/90 mb-2"
             >
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-              <div className="text-xs sm:text-sm">
-                <p className="font-semibold">Login Berhasil!</p>
-                <p className="opacity-90">
-                  Mengalihkan Anda ke halaman dashboard...
-                </p>
-              </div>
-            </div>
-          )}
+              Username
+            </label>
+            <input
+              id="username"
+              name="username"
+              type="text"
+              autoComplete="username"
+              required
+              disabled={isFormDisabled}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Masukkan username"
+              className="w-full rounded-xl bg-white/5 border border-white/30 px-4 py-3 text-sm text-white placeholder:text-white/40 transition duration-200 focus:outline-none focus:border-white/80 focus:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+          </div>
 
-          {/* Form Login */}
-          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-            {/* Input Username */}
-            <div>
-              <label
-                htmlFor="username"
-                className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-2"
-              >
-                Username
-              </label>
-              <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
-                  <User className="w-5 h-5" />
-                </div>
-                <input
-                  id="username"
-                  name="username"
-                  type="text"
-                  autoComplete="username"
-                  required
-                  disabled={isFormDisabled}
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Masukkan username (misal: admin)"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/60 pl-11 pr-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition focus:bg-white focus:border-[#0D47A1] focus:outline-none focus:ring-3 focus:ring-[#0D47A1]/15 disabled:opacity-60 disabled:cursor-not-allowed"
-                />
-              </div>
-            </div>
-
-            {/* Input Password dengan Toggle Show/Hide */}
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-2"
-              >
-                Password
-              </label>
-              <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
-                  <Lock className="w-5 h-5" />
-                </div>
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="current-password"
-                  required
-                  disabled={isFormDisabled}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Masukkan password Anda"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/60 pl-11 pr-12 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition focus:bg-white focus:border-[#0D47A1] focus:outline-none focus:ring-3 focus:ring-[#0D47A1]/15 disabled:opacity-60 disabled:cursor-not-allowed"
-                />
-                <button
-                  type="button"
-                  disabled={isFormDisabled}
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  aria-label={
-                    showPassword
-                      ? "Sembunyikan password"
-                      : "Tampilkan password"
-                  }
-                  className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 hover:text-[#0D47A1] focus:outline-none transition-colors disabled:opacity-50"
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-5 h-5" />
-                  ) : (
-                    <Eye className="w-5 h-5" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Tombol Submit Login */}
-            <div className="pt-2">
-              <button
-                type="submit"
+          {/* Input Password dengan Toggle Show/Hide */}
+          <div>
+            <label
+              htmlFor="password"
+              className="block text-xs font-medium text-white/90 mb-2"
+            >
+              Password
+            </label>
+            <div className="relative">
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                required
                 disabled={isFormDisabled}
-                className="group relative w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#0D47A1] hover:bg-[#082f6e] active:bg-[#062354] text-white font-semibold py-3.5 px-5 text-sm shadow-lg shadow-[#0D47A1]/25 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-[#FBC02D]/50 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Masukkan password"
+                className="w-full rounded-xl bg-white/5 border border-white/30 pl-4 pr-11 py-3 text-sm text-white placeholder:text-white/40 transition duration-200 focus:outline-none focus:border-white/80 focus:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              <button
+                type="button"
+                disabled={isFormDisabled}
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={
+                  showPassword
+                    ? "Sembunyikan password"
+                    : "Tampilkan password"
+                }
+                className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-white/50 hover:text-white/90 focus:outline-none transition-colors disabled:opacity-40 cursor-pointer"
               >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin text-[#FBC02D]" />
-                    <span>Memverifikasi Kredensial...</span>
-                  </>
-                ) : retryCountdown > 0 ? (
-                  <>
-                    <Clock className="w-5 h-5 text-[#FBC02D]" />
-                    <span>Terkunci Sementara ({retryCountdown}d)</span>
-                  </>
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4" />
                 ) : (
-                  <>
-                    <span>Masuk ke Sistem</span>
-                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-[#FBC02D] text-[#0D47A1] transition-transform group-hover:translate-x-1">
-                      <ArrowRight className="w-4 h-4 stroke-[2.5]" />
-                    </span>
-                  </>
+                  <Eye className="w-4 h-4" />
                 )}
               </button>
             </div>
-          </form>
-
-          {/* Info Tambahan / Bantuan Kredensial Seeder untuk Pengujian */}
-          <div className="mt-8 pt-6 border-t border-slate-100">
-            <div className="rounded-xl bg-slate-50 border border-slate-200/80 p-3.5 text-xs text-slate-600">
-              <p className="font-semibold text-slate-800 flex items-center gap-1.5 mb-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#FBC02D]" />
-                Akun Demo (Database Seeder):
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-                <button
-                  type="button"
-                  disabled={isFormDisabled}
-                  onClick={() => {
-                    setUsername("admin");
-                    setPassword("password123");
-                  }}
-                  className="text-left p-2 rounded-lg bg-white border border-slate-200 hover:border-[#0D47A1] transition cursor-pointer"
-                >
-                  <span className="font-bold text-[#0D47A1] block">
-                    Role Admin
-                  </span>
-                  <span className="font-mono text-slate-500">
-                    admin / password123
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  disabled={isFormDisabled}
-                  onClick={() => {
-                    setUsername("prodi_ti");
-                    setPassword("password123");
-                  }}
-                  className="text-left p-2 rounded-lg bg-white border border-slate-200 hover:border-[#0D47A1] transition cursor-pointer"
-                >
-                  <span className="font-bold text-[#0D47A1] block">
-                    Role Prodi (User)
-                  </span>
-                  <span className="font-mono text-slate-500">
-                    prodi_ti / password123
-                  </span>
-                </button>
-              </div>
-            </div>
           </div>
-        </div>
+
+          {/* Tombol Login */}
+          <div className="pt-2">
+            <button
+              type="submit"
+              disabled={isFormDisabled}
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium py-3 px-4 text-sm shadow-lg shadow-blue-950/50 transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400/60 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Memproses...</span>
+                </>
+              ) : retryCountdown > 0 ? (
+                <span>Tunggu {retryCountdown}d</span>
+              ) : (
+                <span>Masuk</span>
+              )}
+            </button>
+          </div>
+        </form>
       </div>
-    </div>
+
+      {/* Informasi Akun Demo (Subtle di luar Card bagian bawah) */}
+      <div className="relative z-10 mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-white/40">
+        <span>Demo:</span>
+        <button
+          type="button"
+          disabled={isFormDisabled}
+          onClick={() => {
+            setUsername("admin");
+            setPassword("password123");
+          }}
+          className="hover:text-white/70 transition-colors cursor-pointer disabled:cursor-not-allowed"
+        >
+          Admin (admin / password123)
+        </button>
+        <span aria-hidden="true">&bull;</span>
+        <button
+          type="button"
+          disabled={isFormDisabled}
+          onClick={() => {
+            setUsername("prodi_ti");
+            setPassword("password123");
+          }}
+          className="hover:text-white/70 transition-colors cursor-pointer disabled:cursor-not-allowed"
+        >
+          Prodi (prodi_ti / password123)
+        </button>
+      </div>
+    </main>
   );
 }

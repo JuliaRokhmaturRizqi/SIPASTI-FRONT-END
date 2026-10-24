@@ -1,0 +1,38 @@
+export type DokumenStatus = "Belum Unggah" | "Review" | "Revisi" | "Selesai";
+
+export type TahapDokumenNumber = 1 | 2 | 3 | 4;
+
+export interface DokumenApiRecord {
+  id?: number;
+  id_prodi?: number;
+  id_periode?: number;
+  tahap_dokumen: TahapDokumenNumber;
+  file_path: string | null;
+  status: DokumenStatus;
+  catatan_revisi: string | null;
+  tanggal_upload: string | null;
+}
+
+export interface TaskCardItem {
+  tahap: TahapDokumenNumber;
+  judul: string;
+  deskripsi: string;
+  status: DokumenStatus;
+  filePath: string | null;
+  catatanRevisi: string | null;
+  tanggalUpload: string | null;
+}
+
+export interface DokumenListResponse {
+  status: "success" | "error";
+  id_prodi?: number;
+  periode_aktif?: string;
+  data?: DokumenApiRecord[];
+  message?: string;
+}
+
+export interface DokumenUploadResponse {
+  status: "success" | "error";
+  message: string;
+  data?: DokumenApiRecord;
+}
