@@ -909,8 +909,8 @@ export default function AdminDashboardPage() {
             <button
               type="button"
               onClick={() => {
-                setActiveMenu("periode");
                 setIsMobileSidebarOpen(false);
+                router.push("/admin/periode");
               }}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition cursor-pointer ${
                 activeMenu === "periode"
