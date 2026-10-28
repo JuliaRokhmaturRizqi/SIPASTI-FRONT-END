@@ -23,6 +23,16 @@ export interface TaskCardItem {
   tanggalUpload: string | null;
 }
 
+/**
+ * Tipe Periode untuk skema Multi-Open pada Dashboard Operator Prodi
+ */
+export interface ProdiPeriodeOption {
+  id: string;
+  nama_periode: string;
+  status: "Buka" | "Tutup" | "Diarsipkan";
+  is_default: boolean;
+}
+
 export interface DokumenListResponse {
   status: "success" | "error";
   id_prodi?: number;

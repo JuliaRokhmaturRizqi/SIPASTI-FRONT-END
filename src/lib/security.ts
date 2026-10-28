@@ -1,7 +1,7 @@
 /**
- * Konstanta batas ukuran maksimal file upload: 5 MB (dalam satuan bytes).
+ * Konstanta batas ukuran maksimal file upload: 2 MB (2,097,152 bytes) untuk Operator Prodi.
  */
-export const MAX_PDF_SIZE_BYTES = 5 * 1024 * 1024; // 5,242,880 bytes
+export const MAX_PDF_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
 
 /**
  * Sanitasi teks secara ketat untuk mencegah Cross-Site Scripting (XSS) dan Injection.
@@ -94,15 +94,16 @@ export interface FileValidationResult {
  * Validasi ketat file upload di sisi klien (Sinkron):
  * 1. Hanya menerima ekstensi .pdf dan MIME type application/pdf
  * 2. Menolak nama file dengan ekstensi ganda mencurigakan (misal: .php.pdf, .exe.pdf)
- * 3. Ukuran file wajib > 0 byte dan <= 5 MB
+ * 3. Ukuran file wajib > 0 byte dan <= maxBytes (default 2 MB)
  */
 export function validatePdfFileSync(
-  file: File | null | undefined
+  file: File | null | undefined,
+  maxBytes: number = MAX_PDF_SIZE_BYTES
 ): FileValidationResult {
   if (!file) {
     return {
       valid: false,
-      error: "Silakan pilih berkas dokumen terlebih dahulu.",
+      error: "Silakan pilih berkas dokumen PDF terlebih dahulu.",
     };
   }
 
@@ -114,7 +115,7 @@ export function validatePdfFileSync(
     return {
       valid: false,
       error:
-        "Format berkas ditolak. Sistem hanya menerima berkas dengan ekstensi .pdf.",
+        "Format berkas ditolak! Sistem hanya menerima berkas dokumen berformat .pdf.",
     };
   }
 
@@ -125,7 +126,7 @@ export function validatePdfFileSync(
     return {
       valid: false,
       error:
-        "Nama berkas mengandung ekstensi ganda yang tidak diizinkan demi keamanan sistem.",
+        "Nama berkas mengandung ekstensi ganda yang dilarang demi keamanan sistem.",
     };
   }
 
@@ -134,7 +135,7 @@ export function validatePdfFileSync(
     return {
       valid: false,
       error:
-        "Tipe MIME berkas tidak valid. Pastikan berkas Anda adalah dokumen PDF asli (application/pdf).",
+        "Tipe berkas bukan PDF yang sah (wajib application/pdf).",
     };
   }
 
@@ -146,12 +147,13 @@ export function validatePdfFileSync(
     };
   }
 
-  // Validasi batas ukuran maksimal 5 MB
-  if (file.size > MAX_PDF_SIZE_BYTES) {
+  // Validasi batas ukuran maksimal (default 2 MB)
+  if (file.size > maxBytes) {
     const sizeInMb = (file.size / (1024 * 1024)).toFixed(2);
+    const maxInMb = Math.round(maxBytes / (1024 * 1024));
     return {
       valid: false,
-      error: `Ukuran berkas (${sizeInMb} MB) melebihi batas maksimal 5 MB.`,
+      error: `Ukuran berkas (${sizeInMb} MB) melebihi batas maksimal ${maxInMb} MB.`,
     };
   }
 
