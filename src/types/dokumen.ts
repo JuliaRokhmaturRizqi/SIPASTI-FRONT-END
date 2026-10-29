@@ -14,6 +14,7 @@ export interface DokumenApiRecord {
 }
 
 export interface TaskCardItem {
+  id?: number | null;
   tahap: TahapDokumenNumber;
   judul: string;
   deskripsi: string;
@@ -31,6 +32,20 @@ export interface ProdiPeriodeOption {
   nama_periode: string;
   status: "Buka" | "Tutup" | "Diarsipkan";
   is_default: boolean;
+}
+
+export interface PeriodeApiRecord {
+  id: number;
+  nama_periode: string;
+  status_pelaporan: "Buka" | "Tutup";
+  is_default: boolean;
+  dokumen_pelaporan_count?: number;
+}
+
+export interface PeriodeListResponse {
+  status: "success" | "error";
+  message?: string;
+  data?: PeriodeApiRecord[];
 }
 
 export interface DokumenListResponse {

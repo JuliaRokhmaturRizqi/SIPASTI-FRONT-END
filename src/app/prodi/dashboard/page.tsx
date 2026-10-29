@@ -3,199 +3,85 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AxiosError } from "axios";
+import toast, { Toaster } from "react-hot-toast";
 import {
-  AlertCircle,
   AlertTriangle,
   Calendar,
-  CheckCircle2,
   ChevronDown,
   Clock,
+  Download,
   Eye,
   FileCheck2,
   FileText,
   GraduationCap,
   Loader2,
   LogOut,
+  RefreshCw,
   ShieldCheck,
-  Sparkles,
   Upload,
   X,
 } from "lucide-react";
 import apiClient from "@/lib/axios";
 import { clearAuthSession, getAuthSession, logoutSession } from "@/lib/auth";
 import { sanitizePlainText } from "@/lib/security";
-import { ApiErrorResponse, AuthUser } from "@/types/auth";
+import { AuthUser } from "@/types/auth";
 import {
+  DokumenApiRecord,
+  DokumenListResponse,
   DokumenStatus,
   DokumenUploadResponse,
+  PeriodeListResponse,
   ProdiPeriodeOption,
+  TahapDokumenNumber,
   TaskCardItem,
 } from "@/types/dokumen";
 import ProdiUploadModal from "@/components/prodi/ProdiUploadModal";
 
 /**
- * Daftar Master Periode Pelaporan (Sistem Multi-Open: beberapa periode bisa berstatus 'Buka' bersamaan).
- * Dropdown hanya akan merender periode dengan status === 'Buka', dan memilih is_default === true sebagai nilai awal.
+ * Definisi 4 Tahapan Baku Pelaporan Akademik
  */
-const MASTER_PERIODE_LIST: ProdiPeriodeOption[] = [
+const DEFAULT_TAHAPAN_BLUEPRINT: Array<{
+  tahap: TahapDokumenNumber;
+  judul: string;
+  deskripsi: string;
+}> = [
   {
-    id: "2026-ganjil",
-    nama_periode: "2026/2027 Ganjil",
-    status: "Buka",
-    is_default: true,
+    tahap: 1,
+    judul: "1. Kurikulum & Mata Kuliah",
+    deskripsi:
+      "Dokumen struktur kurikulum aktif, sebaran mata kuliah per semester, serta RPS yang telah disahkan.",
   },
   {
-    id: "2026-genap",
-    nama_periode: "2026/2027 Genap",
-    status: "Buka",
-    is_default: false,
+    tahap: 2,
+    judul: "2. Kelas & Jadwal",
+    deskripsi:
+      "Daftar pembagian kelas paralel, penugasan dosen pengampu (SK Mengajar), dan jadwal perkuliahan.",
   },
   {
-    id: "2025-remedial",
-    nama_periode: "2025/2026 Susulan & Remedial",
-    status: "Buka",
-    is_default: false,
+    tahap: 3,
+    judul: "3. Nilai Perkuliahan",
+    deskripsi:
+      "Rekapitulasi nilai akhir mahasiswa (KHS/DPNA), berita acara penyerahan nilai, dan distribusi indeks prestasi.",
   },
   {
-    id: "2025-reguler",
-    nama_periode: "2025/2026 Ganjil (Ditutup)",
-    status: "Tutup",
-    is_default: false,
+    tahap: 4,
+    judul: "4. Yudisium & Transkrip",
+    deskripsi:
+      "Berita acara penetapan kelulusan (Yudisium), daftar lulusan periode berjalan, serta draf transkrip akademik.",
   },
 ];
 
 /**
- * Data Dummy Awal untuk Ke-4 Kartu Tugas pada setiap Periode yang Terbuka (Multi-Open)
+ * Fallback Master Periode apabila backend belum memiliki data periode
  */
-const INITIAL_TASKS_BY_PERIODE: Record<string, TaskCardItem[]> = {
-  "2026-ganjil": [
-    {
-      tahap: 1,
-      judul: "1. Kurikulum & Mata Kuliah",
-      deskripsi:
-        "Dokumen struktur kurikulum aktif, sebaran mata kuliah per semester, serta RPS yang telah disahkan.",
-      status: "Selesai",
-      filePath: "dokumen-pelaporan/kurikulum-ti-2026-ganjil.pdf",
-      catatanRevisi: null,
-      tanggalUpload: "2026-10-19T09:00:00Z",
-    },
-    {
-      tahap: 2,
-      judul: "2. Kelas & Jadwal",
-      deskripsi:
-        "Daftar pembagian kelas paralel, penugasan dosen pengampu (SK Mengajar), dan jadwal perkuliahan.",
-      status: "Selesai",
-      filePath: "dokumen-pelaporan/kelas-jadwal-ti-2026-ganjil.pdf",
-      catatanRevisi: null,
-      tanggalUpload: "2026-10-21T10:30:00Z",
-    },
-    {
-      tahap: 3,
-      judul: "3. Nilai Perkuliahan",
-      deskripsi:
-        "Rekapitulasi nilai akhir mahasiswa (KHS/DPNA), berita acara penyerahan nilai, dan distribusi indeks prestasi.",
-      status: "Revisi",
-      filePath: "dokumen-pelaporan/nilai-perkuliahan-ti-2026-ganjil.pdf",
-      catatanRevisi:
-        "Rekapitulasi nilai mata kuliah wajib semester 3 dan 5 belum mencantumkan pengesahan Kaprodi serta lampiran berita acara nilai belum lengkap. Mohon perbaiki dan unggah ulang dalam format PDF.",
-      tanggalUpload: "2026-10-23T14:15:00Z",
-    },
-    {
-      tahap: 4,
-      judul: "4. Yudisium & Transkrip",
-      deskripsi:
-        "Berita acara penetapan kelulusan (Yudisium), daftar lulusan periode berjalan, serta draf transkrip akademik.",
-      status: "Belum Unggah",
-      filePath: null,
-      catatanRevisi: null,
-      tanggalUpload: null,
-    },
-  ],
-  "2026-genap": [
-    {
-      tahap: 1,
-      judul: "1. Kurikulum & Mata Kuliah",
-      deskripsi:
-        "Dokumen struktur kurikulum aktif, sebaran mata kuliah per semester, serta RPS yang telah disahkan.",
-      status: "Selesai",
-      filePath: "dokumen-pelaporan/kurikulum-ti-2026-genap.pdf",
-      catatanRevisi: null,
-      tanggalUpload: "2026-10-25T08:30:00Z",
-    },
-    {
-      tahap: 2,
-      judul: "2. Kelas & Jadwal",
-      deskripsi:
-        "Daftar pembagian kelas paralel, penugasan dosen pengampu (SK Mengajar), dan jadwal perkuliahan.",
-      status: "Review",
-      filePath: "dokumen-pelaporan/kelas-jadwal-ti-2026-genap.pdf",
-      catatanRevisi: null,
-      tanggalUpload: "2026-10-26T11:20:00Z",
-    },
-    {
-      tahap: 3,
-      judul: "3. Nilai Perkuliahan",
-      deskripsi:
-        "Rekapitulasi nilai akhir mahasiswa (KHS/DPNA), berita acara penyerahan nilai, dan distribusi indeks prestasi.",
-      status: "Belum Unggah",
-      filePath: null,
-      catatanRevisi: null,
-      tanggalUpload: null,
-    },
-    {
-      tahap: 4,
-      judul: "4. Yudisium & Transkrip",
-      deskripsi:
-        "Berita acara penetapan kelulusan (Yudisium), daftar lulusan periode berjalan, serta draf transkrip akademik.",
-      status: "Belum Unggah",
-      filePath: null,
-      catatanRevisi: null,
-      tanggalUpload: null,
-    },
-  ],
-  "2025-remedial": [
-    {
-      tahap: 1,
-      judul: "1. Kurikulum & Mata Kuliah",
-      deskripsi:
-        "Dokumen struktur kurikulum aktif, sebaran mata kuliah per semester, serta RPS yang telah disahkan.",
-      status: "Selesai",
-      filePath: "dokumen-pelaporan/kurikulum-ti-2025-remedial.pdf",
-      catatanRevisi: null,
-      tanggalUpload: "2026-09-10T09:00:00Z",
-    },
-    {
-      tahap: 2,
-      judul: "2. Kelas & Jadwal",
-      deskripsi:
-        "Daftar pembagian kelas paralel, penugasan dosen pengampu (SK Mengajar), dan jadwal perkuliahan.",
-      status: "Selesai",
-      filePath: "dokumen-pelaporan/jadwal-ti-2025-remedial.pdf",
-      catatanRevisi: null,
-      tanggalUpload: "2026-09-12T10:15:00Z",
-    },
-    {
-      tahap: 3,
-      judul: "3. Nilai Perkuliahan",
-      deskripsi:
-        "Rekapitulasi nilai akhir mahasiswa (KHS/DPNA), berita acara penyerahan nilai, dan distribusi indeks prestasi.",
-      status: "Selesai",
-      filePath: "dokumen-pelaporan/nilai-ti-2025-remedial.pdf",
-      catatanRevisi: null,
-      tanggalUpload: "2026-09-20T16:00:00Z",
-    },
-    {
-      tahap: 4,
-      judul: "4. Yudisium & Transkrip",
-      deskripsi:
-        "Berita acara penetapan kelulusan (Yudisium), daftar lulusan periode berjalan, serta draf transkrip akademik.",
-      status: "Review",
-      filePath: "dokumen-pelaporan/yudisium-ti-2025-remedial.pdf",
-      catatanRevisi: null,
-      tanggalUpload: "2026-09-25T13:45:00Z",
-    },
-  ],
-};
+const FALLBACK_PERIODE_LIST: ProdiPeriodeOption[] = [
+  {
+    id: "1",
+    nama_periode: "2026/2027 Ganjil",
+    status: "Buka",
+    is_default: true,
+  },
+];
 
 /**
  * Helper Konfigurasi Visual Badge Status:
@@ -234,27 +120,46 @@ function getStatusBadgeConfig(status: DokumenStatus) {
   }
 }
 
-interface ToastMessage {
-  id: number;
-  type: "success" | "error" | "info";
-  title: string;
-  description: string;
+/**
+ * Membangun 4 Kartu Tugas dengan menggabungkan Blueprint Tahapan (1-4)
+ * dengan data riil dari API GET /api/dokumen?id_periode=...
+ */
+function mapApiDokumenToTaskCards(
+  records: DokumenApiRecord[] = []
+): TaskCardItem[] {
+  return DEFAULT_TAHAPAN_BLUEPRINT.map((bp) => {
+    const matched = records.find(
+      (rec) => Number(rec.tahap_dokumen) === bp.tahap
+    );
+
+    if (!matched) {
+      return {
+        id: null,
+        tahap: bp.tahap,
+        judul: bp.judul,
+        deskripsi: bp.deskripsi,
+        status: "Belum Unggah",
+        filePath: null,
+        catatanRevisi: null,
+        tanggalUpload: null,
+      };
+    }
+
+    return {
+      id: matched.id ?? null,
+      tahap: bp.tahap,
+      judul: bp.judul,
+      deskripsi: bp.deskripsi,
+      status: matched.status || "Belum Unggah",
+      filePath: matched.file_path || null,
+      catatanRevisi: matched.catatan_revisi || null,
+      tanggalUpload: matched.tanggal_upload || null,
+    };
+  });
 }
 
 export default function ProdiDashboardPage() {
   const router = useRouter();
-
-  // Filter hanya periode yang berstatus 'Buka'
-  const openPeriodeOptions = useMemo(
-    () => MASTER_PERIODE_LIST.filter((p) => p.status === "Buka"),
-    []
-  );
-
-  // Cari periode default (is_default === true)
-  const defaultPeriodeId = useMemo(() => {
-    const foundDefault = openPeriodeOptions.find((p) => p.is_default);
-    return foundDefault ? foundDefault.id : openPeriodeOptions[0]?.id || "";
-  }, [openPeriodeOptions]);
 
   // State Otorisasi & Profil Pengguna
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -262,45 +167,30 @@ export default function ProdiDashboardPage() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // State Multi-Open Periode & Data Kartu Tugas per Periode
-  const [selectedPeriodeId, setSelectedPeriodeId] =
-    useState<string>(defaultPeriodeId);
-  const [tasksByPeriode, setTasksByPeriode] = useState<
-    Record<string, TaskCardItem[]>
-  >(INITIAL_TASKS_BY_PERIODE);
+  // State Daftar Periode Multi-Open & Periode Aktif Terpilih
+  const [periodeList, setPeriodeList] = useState<ProdiPeriodeOption[]>(
+    FALLBACK_PERIODE_LIST
+  );
+  const [selectedPeriode, setSelectedPeriode] = useState<string>("1");
+
+  // State Kartu Tugas & Loading Fetch Data Dashboard
+  const [taskCards, setTaskCards] = useState<TaskCardItem[]>(() =>
+    mapApiDokumenToTaskCards([])
+  );
+  const [isFetchingDashboard, setIsFetchingDashboard] = useState<boolean>(false);
 
   // State Modal Upload PDF & Modal Lihat Dokumen
   const [activeUploadTask, setActiveUploadTask] =
     useState<TaskCardItem | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const [activePreviewTask, setActivePreviewTask] =
     useState<TaskCardItem | null>(null);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState<boolean>(false);
 
-  // State Toast Notification
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
-
-  const pushToast = useCallback(
-    (type: ToastMessage["type"], title: string, description: string) => {
-      const id = Date.now() + Math.floor(Math.random() * 1000);
-      setToasts((prev) => [
-        ...prev,
-        {
-          id,
-          type,
-          title: sanitizePlainText(title),
-          description: sanitizePlainText(description),
-        },
-      ]);
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((item) => item.id !== id));
-      }, 4200);
-    },
-    []
-  );
-
-  const dismissToast = (id: number) => {
-    setToasts((prev) => prev.filter((item) => item.id !== id));
-  };
+  // Filter hanya periode yang berstatus 'Buka'
+  const openPeriodeOptions = useMemo(() => {
+    const filtered = periodeList.filter((p) => p.status === "Buka");
+    return filtered.length > 0 ? filtered : FALLBACK_PERIODE_LIST;
+  }, [periodeList]);
 
   /**
    * Penanganan keluar aman saat sesi tidak sah (401/403)
@@ -312,12 +202,61 @@ export default function ProdiDashboardPage() {
   }, [router]);
 
   /**
-   * Route Protection: Wajib memiliki token otorisasi valid DAN role === 'user'
+   * Fungsi Utama fetchDataDashboard():
+   * Mengambil data dokumen pelaporan terbaru dari endpoint GET /api/dokumen?id_periode={selectedPeriode}
+   * menggunakan Axios instance ber-interceptor Bearer token.
+   */
+  const fetchDataDashboard = useCallback(
+    async (periodeIdParam?: string, showLoadingSpinner = true) => {
+      const targetPeriode = periodeIdParam || selectedPeriode;
+      if (!targetPeriode) return;
+
+      if (showLoadingSpinner) {
+        setIsFetchingDashboard(true);
+      }
+
+      try {
+        const response = await apiClient.get<DokumenListResponse>(
+          "/api/dokumen",
+          {
+            params: {
+              id_periode: targetPeriode,
+            },
+          }
+        );
+
+        const records = response.data?.data || [];
+        setTaskCards(mapApiDokumenToTaskCards(records));
+      } catch (err) {
+        const axiosErr = err as AxiosError<{ message?: string }>;
+        const status = axiosErr.response?.status;
+
+        if (status === 401 || status === 403) {
+          handleUnauthorizedExit();
+          return;
+        }
+
+        toast.error(
+          axiosErr.response?.data?.message ||
+            "Gagal memuat data dokumen pelaporan dari server."
+        );
+      } finally {
+        if (showLoadingSpinner) {
+          setIsFetchingDashboard(false);
+        }
+      }
+    },
+    [selectedPeriode, handleUnauthorizedExit]
+  );
+
+  /**
+   * Route Protection & Inisialisasi Data Periode + Dokumen:
+   * Wajib memiliki token otorisasi valid DAN role === 'user'
    */
   useEffect(() => {
     let isMounted = true;
 
-    const verifyProdiAccess = async () => {
+    const initializeProdiDashboard = async () => {
       const session = getAuthSession();
 
       if (!session.token || session.role !== "user") {
@@ -330,14 +269,11 @@ export default function ProdiDashboardPage() {
       }
 
       try {
+        // 1. Verifikasi sesi pengguna ke /api/me
         const meResponse = await apiClient.get<{
           status: string;
           data: AuthUser;
-        }>("/me", {
-          headers: {
-            Authorization: `Bearer ${session.token}`,
-          },
-        });
+        }>("/api/me");
 
         const verifiedUser = meResponse.data?.data;
         if (!verifiedUser || verifiedUser.role !== "user") {
@@ -345,11 +281,47 @@ export default function ProdiDashboardPage() {
           return;
         }
 
+        // 2. Ambil daftar periode akademik dari /api/periode
+        let initialPeriodeId = "1";
+        try {
+          const periodeRes =
+            await apiClient.get<PeriodeListResponse>("/api/periode");
+          const rawPeriode = periodeRes.data?.data || [];
+
+          if (rawPeriode.length > 0) {
+            const mappedOptions: ProdiPeriodeOption[] = rawPeriode.map((p) => ({
+              id: String(p.id),
+              nama_periode: p.nama_periode,
+              status: p.status_pelaporan === "Buka" ? "Buka" : "Tutup",
+              is_default: Boolean(p.is_default),
+            }));
+
+            const openOnly = mappedOptions.filter((p) => p.status === "Buka");
+            const defaultOption =
+              openOnly.find((p) => p.is_default) ||
+              openOnly[0] ||
+              mappedOptions[0];
+
+            if (isMounted) {
+              setPeriodeList(mappedOptions);
+              if (defaultOption) {
+                initialPeriodeId = defaultOption.id;
+                setSelectedPeriode(defaultOption.id);
+              }
+            }
+          }
+        } catch {
+          // Gunakan fallback jika endpoint periode belum tersedia
+        }
+
         if (isMounted) {
           setUser(verifiedUser);
           setIsAuthorized(true);
           setIsCheckingAuth(false);
         }
+
+        // 3. Muat data kartu tugas dari backend untuk periode awal
+        await fetchDataDashboard(initialPeriodeId, true);
       } catch (err) {
         const axiosErr = err as AxiosError;
         const status = axiosErr.response?.status;
@@ -359,12 +331,12 @@ export default function ProdiDashboardPage() {
       }
     };
 
-    verifyProdiAccess();
+    initializeProdiDashboard();
 
     return () => {
       isMounted = false;
     };
-  }, [handleUnauthorizedExit]);
+  }, [handleUnauthorizedExit, fetchDataDashboard]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -377,127 +349,95 @@ export default function ProdiDashboardPage() {
     }
   };
 
-  /**
-   * Mengambil daftar 4 kartu tugas untuk periode yang sedang dipilih di dropdown
-   */
-  const currentTasks = useMemo(() => {
-    return (
-      tasksByPeriode[selectedPeriodeId] ||
-      INITIAL_TASKS_BY_PERIODE[defaultPeriodeId] ||
-      []
-    );
-  }, [tasksByPeriode, selectedPeriodeId, defaultPeriodeId]);
-
   const currentPeriodeObj = useMemo(() => {
     return (
-      openPeriodeOptions.find((p) => p.id === selectedPeriodeId) ||
+      openPeriodeOptions.find((p) => p.id === selectedPeriode) ||
       openPeriodeOptions[0]
     );
-  }, [openPeriodeOptions, selectedPeriodeId]);
+  }, [openPeriodeOptions, selectedPeriode]);
 
   /**
    * Kalkulasi Progress Bar Dinamis berdasarkan periode terpilih
    */
-  const totalDokumen = currentTasks.length || 4;
-  const selesaiCount = currentTasks.filter(
-    (t) => t.status === "Selesai"
-  ).length;
+  const totalDokumen = taskCards.length || 4;
+  const selesaiCount = taskCards.filter((t) => t.status === "Selesai").length;
   const progressPercentage = Math.round((selesaiCount / totalDokumen) * 100);
 
   /**
    * Handler saat Dropdown 'Pilih Periode Pelaporan' diubah
    */
-  const handlePeriodeSelectChange = (
+  const handlePeriodeSelectChange = async (
     e: React.ChangeEvent<HTMLSelectElement>
   ) => {
     const newPeriodeId = e.target.value;
-    setSelectedPeriodeId(newPeriodeId);
-    const targetObj = openPeriodeOptions.find((p) => p.id === newPeriodeId);
-    if (targetObj) {
-      pushToast(
-        "info",
-        "Periode Pelaporan Diubah",
-        `Menampilkan tahapan dokumen untuk periode ${targetObj.nama_periode}.`
-      );
-    }
+    setSelectedPeriode(newPeriodeId);
+    await fetchDataDashboard(newPeriodeId, true);
   };
 
   /**
-   * Handler Submit Upload PDF dari Modal
+   * Callback setelah upload dokumen di Modal berhasil (200 OK):
+   * 1. Optimistic update agar kartu langsung berubah menjadi 'Review' (kuning)
+   * 2. Trigger fetchDataDashboard() untuk sinkronisasi penuh dengan database backend
    */
-  const handleUploadPdfSubmit = async (file: File, task: TaskCardItem) => {
-    const { token, role } = getAuthSession();
-    if (!token || role !== "user") {
-      handleUnauthorizedExit();
+  const handleUploadSuccess = async (
+    uploadedData?: DokumenUploadResponse["data"]
+  ) => {
+    if (uploadedData) {
+      setTaskCards((prevCards) =>
+        prevCards.map((card) =>
+          card.tahap === Number(uploadedData.tahap_dokumen)
+            ? {
+                ...card,
+                id: uploadedData.id ?? card.id,
+                status: uploadedData.status || "Review",
+                filePath: uploadedData.file_path || card.filePath,
+                catatanRevisi: null,
+                tanggalUpload:
+                  uploadedData.tanggal_upload || new Date().toISOString(),
+              }
+            : card
+        )
+      );
+    }
+
+    await fetchDataDashboard(selectedPeriode, false);
+  };
+
+  /**
+   * Fungsi Unduh PDF Terenkripsi dari Backend (/api/dokumen/{id}/download)
+   */
+  const handleDownloadPdf = async (task: TaskCardItem) => {
+    if (!task.id) {
+      toast.error("ID dokumen belum tersedia di server.");
       return;
     }
 
-    setIsUploading(true);
-    const safeFileName = sanitizePlainText(file.name);
-
+    setIsDownloadingPdf(true);
     try {
-      const formData = new FormData();
-      formData.append("tahap_dokumen", String(task.tahap));
-      formData.append("periode_id", selectedPeriodeId);
-      formData.append("file", file);
-
-      const response = await apiClient.post<DokumenUploadResponse>(
-        "/prodi/dokumen-pelaporan/upload",
-        formData,
+      const response = await apiClient.get(
+        `/api/dokumen/${task.id}/download`,
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
+          responseType: "blob",
         }
       );
 
-      const uploadedRecord = response.data?.data;
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      const fileName =
+        task.filePath?.split("/").pop() || `dokumen-tahap-${task.tahap}.pdf`;
+      link.setAttribute("download", sanitizePlainText(fileName));
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
 
-      setTasksByPeriode((prevMap) => {
-        const listForPeriode = prevMap[selectedPeriodeId] || [];
-        return {
-          ...prevMap,
-          [selectedPeriodeId]: listForPeriode.map((item) =>
-            item.tahap === task.tahap
-              ? {
-                  ...item,
-                  status: uploadedRecord?.status || "Review",
-                  filePath: uploadedRecord?.file_path
-                    ? sanitizePlainText(uploadedRecord.file_path)
-                    : `dokumen-pelaporan/${safeFileName}`,
-                  catatanRevisi: null,
-                  tanggalUpload:
-                    uploadedRecord?.tanggal_upload || new Date().toISOString(),
-                }
-              : item
-          ),
-        };
-      });
-
-      setActiveUploadTask(null);
-      pushToast(
-        "success",
-        "Dokumen Berhasil Diunggah",
-        `Berkas "${safeFileName}" untuk ${task.judul} kini berstatus Review.`
-      );
-    } catch (err) {
-      const axiosErr = err as AxiosError<ApiErrorResponse>;
-      const status = axiosErr.response?.status;
-
-      if (status === 401 || status === 403) {
-        handleUnauthorizedExit();
-        return;
-      }
-
-      const apiMsg =
-        axiosErr.response?.data?.errors?.file?.[0] ||
-        axiosErr.response?.data?.message ||
-        "Gagal mengunggah dokumen ke server.";
-
-      pushToast("error", "Gagal Mengunggah PDF", apiMsg);
+      toast.success("Berkas PDF berhasil diunduh.");
+    } catch {
+      toast.error("Gagal mengunduh berkas PDF dari server.");
     } finally {
-      setIsUploading(false);
+      setIsDownloadingPdf(false);
     }
   };
 
@@ -518,52 +458,46 @@ export default function ProdiDashboardPage() {
 
   const safeUsername = sanitizePlainText(user?.username || "prodi_ti");
   const safeProdiName = sanitizePlainText(
-    user?.prodi?.nama_prodi || "S1 Teknik Informatika"
+    user?.prodi?.nama_prodi || "Program Studi"
   );
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
-      {/* Toast Notification Container */}
-      <div
-        aria-live="polite"
-        className="fixed top-4 right-4 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none"
-      >
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            role="status"
-            className={`pointer-events-auto rounded-2xl border p-4 shadow-xl backdrop-blur-md flex items-start gap-3 transition-all ${
-              toast.type === "success"
-                ? "bg-white/95 border-emerald-200 text-slate-900"
-                : toast.type === "error"
-                ? "bg-white/95 border-red-200 text-slate-900"
-                : "bg-white/95 border-blue-200 text-slate-900"
-            }`}
-          >
-            {toast.type === "success" ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-            ) : toast.type === "error" ? (
-              <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-            ) : (
-              <Sparkles className="w-5 h-5 text-[#0D47A1] shrink-0 mt-0.5" />
-            )}
-            <div className="flex-1 text-xs">
-              <p className="font-bold text-slate-900">{toast.title}</p>
-              <p className="text-slate-600 mt-0.5 leading-relaxed">
-                {toast.description}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => dismissToast(toast.id)}
-              className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
-              aria-label="Tutup notifikasi"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        ))}
-      </div>
+      {/* React Hot Toast Container (Hijau untuk Sukses, Merah untuk Error) */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            borderRadius: "14px",
+            fontSize: "13px",
+            fontWeight: 600,
+            padding: "12px 16px",
+          },
+          success: {
+            style: {
+              background: "#ecfdf5",
+              color: "#065f46",
+              border: "1px solid #6ee7b7",
+            },
+            iconTheme: {
+              primary: "#059669",
+              secondary: "#ecfdf5",
+            },
+          },
+          error: {
+            style: {
+              background: "#fef2f2",
+              color: "#991b1b",
+              border: "1px solid #fca5a5",
+            },
+            iconTheme: {
+              primary: "#dc2626",
+              secondary: "#fef2f2",
+            },
+          },
+        }}
+      />
 
       {/* Top Navigation Bar */}
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/70">
@@ -587,7 +521,22 @@ export default function ProdiDashboardPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => fetchDataDashboard(selectedPeriode, true)}
+              disabled={isFetchingDashboard}
+              title="Muat ulang status dokumen"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200/70 text-xs font-semibold text-slate-700 transition cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`w-3.5 h-3.5 text-[#0D47A1] ${
+                  isFetchingDashboard ? "animate-spin" : ""
+                }`}
+              />
+              <span className="hidden sm:inline">Sinkronkan</span>
+            </button>
+
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200/80 text-xs text-slate-700">
               <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
               <span className="font-medium">{safeUsername}</span>
@@ -640,9 +589,10 @@ export default function ProdiDashboardPage() {
               <div className="relative">
                 <select
                   id="pilih-periode-select"
-                  value={selectedPeriodeId}
+                  value={selectedPeriode}
                   onChange={handlePeriodeSelectChange}
-                  className="w-full appearance-none rounded-xl border border-white/90 bg-white pl-4 pr-10 py-2.5 text-xs sm:text-sm font-semibold text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FBC02D] transition cursor-pointer"
+                  disabled={isFetchingDashboard}
+                  className="w-full appearance-none rounded-xl border border-white/90 bg-white pl-4 pr-10 py-2.5 text-xs sm:text-sm font-semibold text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FBC02D] transition cursor-pointer disabled:opacity-60"
                 >
                   {openPeriodeOptions.map((periode) => (
                     <option key={periode.id} value={periode.id}>
@@ -687,7 +637,7 @@ export default function ProdiDashboardPage() {
 
         {/* Daftar 4 Task Cards (Kartu Tugas Vertikal) */}
         <section aria-label="Daftar Kartu Tugas Pelaporan" className="space-y-4">
-          {currentTasks.map((task) => {
+          {taskCards.map((task) => {
             const badgeCfg = getStatusBadgeConfig(task.status);
             const isNeedUpload =
               task.status === "Belum Unggah" || task.status === "Revisi";
@@ -706,7 +656,7 @@ export default function ProdiDashboardPage() {
 
             return (
               <article
-                key={`${selectedPeriodeId}-tahap-${task.tahap}`}
+                key={`${selectedPeriode}-tahap-${task.tahap}`}
                 className="bg-white rounded-2xl border border-slate-200/85 shadow-xs hover:shadow-md transition-all duration-200 p-5 sm:p-6"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -802,7 +752,6 @@ export default function ProdiDashboardPage() {
                       <p className="font-bold text-red-800">
                         Catatan Revisi dari Admin:
                       </p>
-                      {/* Dirender murni sebagai plain text JSX (Bebas XSS) */}
                       <p className="leading-relaxed">
                         {safeCatatanRevisi ||
                           "Dokumen memerlukan revisi. Silakan perbaiki dan unggah ulang berkas PDF Anda."}
@@ -816,17 +765,14 @@ export default function ProdiDashboardPage() {
         </section>
       </main>
 
-      {/* Komponen Modular Modal Upload PDF (Validasi Ketat .pdf & Maksimal 2MB) */}
+      {/* Komponen Modal Upload PDF Terintegrasi dengan POST /api/dokumen/upload */}
       <ProdiUploadModal
         isOpen={Boolean(activeUploadTask)}
         targetTask={activeUploadTask}
+        selectedPeriode={selectedPeriode}
         periodeLabel={currentPeriodeObj?.nama_periode || ""}
-        isUploading={isUploading}
         onClose={() => setActiveUploadTask(null)}
-        onValidationError={(msg) =>
-          pushToast("error", "Validasi Berkas Gagal", msg)
-        }
-        onSubmitFile={handleUploadPdfSubmit}
+        onUploadSuccess={handleUploadSuccess}
       />
 
       {/* Modal Lihat Dokumen (Untuk Status 'Review' atau 'Selesai') */}
@@ -899,7 +845,23 @@ export default function ProdiDashboardPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                {activePreviewTask.id && (
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadPdf(activePreviewTask)}
+                    disabled={isDownloadingPdf}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0D47A1] hover:bg-[#1565C0] text-white font-semibold text-xs transition cursor-pointer disabled:opacity-50"
+                  >
+                    {isDownloadingPdf ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#FBC02D]" />
+                    ) : (
+                      <Download className="w-3.5 h-3.5" />
+                    )}
+                    <span>Unduh PDF</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => setActivePreviewTask(null)}

@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { AxiosError } from "axios";
+import toast from "react-hot-toast";
 import {
   AlertTriangle,
   FileText,
@@ -10,6 +12,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import apiClient from "@/lib/axios";
 import {
   formatFileSize,
   MAX_PDF_SIZE_BYTES,
@@ -17,35 +20,40 @@ import {
   validatePdfFileSync,
   verifyPdfMagicBytes,
 } from "@/lib/security";
-import { TaskCardItem } from "@/types/dokumen";
+import { ApiErrorResponse } from "@/types/auth";
+import {
+  DokumenUploadResponse,
+  TahapDokumenNumber,
+  TaskCardItem,
+} from "@/types/dokumen";
 
 interface ProdiUploadModalProps {
   isOpen: boolean;
   targetTask: TaskCardItem | null;
+  selectedPeriode: string;
   periodeLabel: string;
-  isUploading: boolean;
   onClose: () => void;
-  onValidationError: (errorMsg: string) => void;
-  onSubmitFile: (file: File, task: TaskCardItem) => Promise<void> | void;
+  onUploadSuccess: (uploadedData?: DokumenUploadResponse["data"]) => Promise<void> | void;
 }
 
 export default function ProdiUploadModal({
   isOpen,
   targetTask,
+  selectedPeriode,
   periodeLabel,
-  isUploading,
   onClose,
-  onValidationError,
-  onSubmitFile,
+  onUploadSuccess,
 }: ProdiUploadModalProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [inlineError, setInlineError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       setSelectedFile(null);
       setInlineError(null);
+      setIsUploading(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -54,11 +62,12 @@ export default function ProdiUploadModal({
 
   if (!isOpen || !targetTask) return null;
 
+  const tahapAktif: TahapDokumenNumber = targetTask.tahap;
   const safeJudul = sanitizePlainText(targetTask.judul);
   const safePeriode = sanitizePlainText(periodeLabel);
 
   /**
-   * Strict File Validation (Hanya PDF & Maksimal 2MB)
+   * Validasi saat memilih file dari <input type="file">
    */
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setInlineError(null);
@@ -77,7 +86,7 @@ export default function ProdiUploadModal({
         "Berkas ditolak! Hanya menerima file PDF dengan ukuran maksimal 2MB.";
       setSelectedFile(null);
       setInlineError(msg);
-      onValidationError(msg);
+      toast.error(msg);
       e.target.value = "";
       return;
     }
@@ -89,7 +98,7 @@ export default function ProdiUploadModal({
         "Berkas ditolak! Struktur biner berkas bukan dokumen PDF yang sah.";
       setSelectedFile(null);
       setInlineError(msg);
-      onValidationError(msg);
+      toast.error(msg);
       e.target.value = "";
       return;
     }
@@ -97,21 +106,89 @@ export default function ProdiUploadModal({
     setSelectedFile(file);
   };
 
-  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  /**
+   * Fungsi handleUpload(e):
+   * - Tangkap file dari <input type="file">
+   * - Lakukan validasi ulang di sisi klien (wajib PDF, max 2MB)
+   * - Masukkan ke FormData: dokumen, id_periode, tahap_dokumen
+   * - POST request via Axios ke /api/dokumen/upload dengan multipart/form-data
+   */
+  const handleUpload = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (isUploading) return;
 
-    const syncCheck = validatePdfFileSync(selectedFile, MAX_PDF_SIZE_BYTES);
-    if (!syncCheck.valid || !selectedFile) {
+    setInlineError(null);
+
+    // Tangkap file dari input ref atau state
+    const file = fileInputRef.current?.files?.[0] || selectedFile;
+
+    // Validasi ulang di sisi klien (wajib PDF, maksimal 2MB)
+    const syncCheck = validatePdfFileSync(file, MAX_PDF_SIZE_BYTES);
+    if (!syncCheck.valid || !file) {
       const msg =
         syncCheck.error ||
         "Silakan pilih berkas PDF yang valid (maksimal 2MB).";
       setInlineError(msg);
-      onValidationError(msg);
+      toast.error(msg);
       return;
     }
 
-    await onSubmitFile(selectedFile, targetTask);
+    const isGenuinePdf = await verifyPdfMagicBytes(file);
+    if (!isGenuinePdf) {
+      const msg =
+        "Berkas ditolak! Struktur biner berkas bukan dokumen PDF yang sah.";
+      setInlineError(msg);
+      toast.error(msg);
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("dokumen", file);
+      formData.append("id_periode", String(selectedPeriode));
+      formData.append("tahap_dokumen", String(tahapAktif));
+
+      const response = await apiClient.post<DokumenUploadResponse>(
+        "/api/dokumen/upload",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      if (response.status === 200 || response.data?.status === "success") {
+        toast.success(
+          response.data?.message ||
+            `Dokumen ${safeJudul} berhasil diunggah dan sedang direview.`
+        );
+        onClose();
+        await onUploadSuccess(response.data?.data);
+      }
+    } catch (err) {
+      const axiosErr = err as AxiosError<
+        ApiErrorResponse & {
+          errors?: Record<string, string[]>;
+        }
+      >;
+
+      const backendErrorMsg =
+        axiosErr.response?.data?.errors?.dokumen?.[0] ||
+        axiosErr.response?.data?.errors?.file?.[0] ||
+        axiosErr.response?.data?.errors?.id_periode?.[0] ||
+        axiosErr.response?.data?.errors?.tahap_dokumen?.[0] ||
+        axiosErr.response?.data?.message ||
+        "Gagal mengunggah dokumen. Pastikan format PDF dan ukuran maksimal 2MB.";
+
+      const safeErr = sanitizePlainText(backendErrorMsg);
+      setInlineError(safeErr);
+      toast.error(safeErr);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -153,7 +230,7 @@ export default function ProdiUploadModal({
         </div>
 
         {/* Form Upload */}
-        <form onSubmit={handleFormSubmit} className="p-6 space-y-5" noValidate>
+        <form onSubmit={handleUpload} className="p-6 space-y-5" noValidate>
           {/* Informasi Aturan Validasi File */}
           <div className="rounded-xl bg-blue-50/70 border border-blue-200/80 p-3.5 flex items-start gap-3 text-xs text-slate-700">
             <Info className="w-4 h-4 text-[#0D47A1] shrink-0 mt-0.5" />
@@ -236,9 +313,9 @@ export default function ProdiUploadModal({
               <input
                 ref={fileInputRef}
                 id="prodi-pdf-input"
-                name="file"
+                name="dokumen"
                 type="file"
-                accept="application/pdf"
+                accept="application/pdf,.pdf"
                 disabled={isUploading}
                 onChange={handleFileChange}
                 className="sr-only"
