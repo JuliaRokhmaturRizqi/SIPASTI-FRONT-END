@@ -10,7 +10,7 @@ import { AuthUser, LoginSuccessResponse, UserRole } from "@/types/auth";
  * Opsi keamanan Cookie default (berlaku 1 hari, SameSite Strict).
  */
 const getCookieOptions = (): Cookies.CookieAttributes => ({
-  expires: 1, // 1 hari (sesuai masa berlaku token / sesi kerja)
+  expires: 1,
   path: "/",
   sameSite: "strict",
   secure:
@@ -23,12 +23,14 @@ const getCookieOptions = (): Cookies.CookieAttributes => ({
 export function setAuthSession(
   token: string,
   role: UserRole,
-  user: AuthUser
+  user?: AuthUser | null
 ): void {
   const options = getCookieOptions();
   Cookies.set(TOKEN_COOKIE_KEY, token, options);
   Cookies.set(ROLE_COOKIE_KEY, role, options);
-  Cookies.set(USER_COOKIE_KEY, JSON.stringify(user), options);
+  if (user) {
+    Cookies.set(USER_COOKIE_KEY, JSON.stringify(user), options);
+  }
 }
 
 /**
@@ -49,7 +51,9 @@ export function getAuthSession(): {
   user: AuthUser | null;
 } {
   const token = Cookies.get(TOKEN_COOKIE_KEY);
-  const role = Cookies.get(ROLE_COOKIE_KEY) as UserRole | undefined;
+  const rawRole = Cookies.get(ROLE_COOKIE_KEY);
+  const role: UserRole | undefined =
+    rawRole === "admin" || rawRole === "user" ? rawRole : undefined;
   const rawUser = Cookies.get(USER_COOKIE_KEY);
 
   let user: AuthUser | null = null;
@@ -75,13 +79,13 @@ export function getDashboardPathByRole(role?: UserRole | string): string {
 }
 
 /**
- * Memanggil endpoint POST /api/login dan menyimpan sesi jika berhasil.
+ * Memanggil endpoint POST /api/login dan menyimpan sesi ke Cookies jika berhasil.
  */
 export async function loginWithCredentials(
   username: string,
   password: string
 ): Promise<LoginSuccessResponse> {
-  const response = await apiClient.post<LoginSuccessResponse>("/login", {
+  const response = await apiClient.post<LoginSuccessResponse>("/api/login", {
     username,
     password,
   });
@@ -97,7 +101,7 @@ export async function loginWithCredentials(
  */
 export async function logoutSession(): Promise<void> {
   try {
-    await apiClient.post("/logout");
+    await apiClient.post("/api/logout");
   } finally {
     clearAuthSession();
   }

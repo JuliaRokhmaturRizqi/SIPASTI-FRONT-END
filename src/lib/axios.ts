@@ -5,14 +5,17 @@ export const TOKEN_COOKIE_KEY = "auth_token";
 export const ROLE_COOKIE_KEY = "auth_role";
 export const USER_COOKIE_KEY = "auth_user";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+/**
+ * Base URL Backend Laravel (Default: http://localhost:8000)
+ */
+const BACKEND_BASE_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
 /**
- * Konfigurasi Axios Client utama untuk komunikasi dengan Laravel REST API (Sanctum).
+ * Instance Axios Global untuk komunikasi HTTP antara Next.js dan API Laravel Sanctum.
  */
 const apiClient = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: BACKEND_BASE_URL,
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",
@@ -22,16 +25,27 @@ const apiClient = axios.create({
 
 /**
  * Request Interceptor:
- * Otomatis menyertakan header Authorization: Bearer <token> jika token tersedia di Cookie.
+ * 1. Menormalisasi prefix endpoint '/api' agar pemanggilan '/api/login' maupun '/login' selalu konsisten.
+ * 2. Mengambil token autentikasi dari Cookies (js-cookie) dan menyisipkannya ke header Authorization: Bearer <token>.
  */
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    if (config.url && !config.url.startsWith("http")) {
+      const cleanPath = config.url.startsWith("/")
+        ? config.url
+        : `/${config.url}`;
+      config.url = cleanPath.startsWith("/api/")
+        ? cleanPath
+        : `/api${cleanPath}`;
+    }
+
     if (typeof window !== "undefined") {
       const token = Cookies.get(TOKEN_COOKIE_KEY);
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
       }
     }
+
     return config;
   },
   (error: AxiosError) => {
@@ -41,20 +55,27 @@ apiClient.interceptors.request.use(
 
 /**
  * Response Interceptor:
- * Menangani error global seperti sesi kadaluarsa (401 Unauthorized di luar halaman login).
+ * Jika menerima error 401 (Unauthorized), otomatis hapus token & data sesi dari Cookies
+ * dan redirect user ke halaman /login.
  */
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (typeof window !== "undefined" && error.response?.status === 401) {
       const requestUrl = error.config?.url || "";
-      // Jangan hapus cookie atau redirect paksa jika error 401 berasal dari percobaan form /login
-      if (!requestUrl.includes("/login")) {
-        Cookies.remove(TOKEN_COOKIE_KEY, { path: "/" });
-        Cookies.remove(ROLE_COOKIE_KEY, { path: "/" });
-        Cookies.remove(USER_COOKIE_KEY, { path: "/" });
+      const isLoginAttempt = requestUrl.endsWith("/login");
+
+      // Hapus seluruh cookie autentikasi
+      Cookies.remove(TOKEN_COOKIE_KEY, { path: "/" });
+      Cookies.remove(ROLE_COOKIE_KEY, { path: "/" });
+      Cookies.remove(USER_COOKIE_KEY, { path: "/" });
+
+      // Redirect otomatis ke /login jika 401 terjadi di luar proses submit form login
+      if (!isLoginAttempt && window.location.pathname !== "/login") {
+        window.location.href = "/login";
       }
     }
+
     return Promise.reject(error);
   }
 );

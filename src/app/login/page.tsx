@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AxiosError } from "axios";
+import Cookies from "js-cookie";
 import {
   AlertCircle,
   CheckCircle2,
@@ -11,12 +12,13 @@ import {
   EyeOff,
   Loader2,
 } from "lucide-react";
-import {
-  getAuthSession,
-  getDashboardPathByRole,
-  loginWithCredentials,
-} from "@/lib/auth";
-import { ApiErrorResponse } from "@/types/auth";
+import apiClient, {
+  ROLE_COOKIE_KEY,
+  TOKEN_COOKIE_KEY,
+  USER_COOKIE_KEY,
+} from "@/lib/axios";
+import { getAuthSession, getDashboardPathByRole } from "@/lib/auth";
+import { ApiErrorResponse, LoginSuccessResponse } from "@/types/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -26,7 +28,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  // Request & feedback states
+  // Request & UI feedback states
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -35,10 +37,10 @@ export default function LoginPage() {
   >(null);
   const [retryCountdown, setRetryCountdown] = useState<number>(0);
 
-  // Cek sesi aktif saat halaman dibuka
+  // Cek sesi aktif di Cookies saat halaman dibuka
   useEffect(() => {
     const { token, role } = getAuthSession();
-    if (token && role) {
+    if (token && (role === "admin" || role === "user")) {
       router.replace(getDashboardPathByRole(role));
     }
   }, [router]);
@@ -60,6 +62,13 @@ export default function LoginPage() {
     return () => clearInterval(timer);
   }, [retryCountdown, errorType]);
 
+  /**
+   * Handler Submit Login:
+   * - Melakukan POST request ke /api/login menggunakan Axios Global
+   * - Menyimpan token & role ke Cookies (js-cookie)
+   * - Melakukan redirect dinamis (/admin/dashboard atau /prodi/dashboard)
+   * - Menampilkan pesan error rapi di UI tanpa console.log
+   */
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -77,12 +86,42 @@ export default function LoginPage() {
     setErrorType(null);
 
     try {
-      const result = await loginWithCredentials(trimmedUsername, password);
-      const userRole = result.data.role;
+      const response = await apiClient.post<LoginSuccessResponse>(
+        "/api/login",
+        {
+          username: trimmedUsername,
+          password,
+        }
+      );
+
+      const { access_token, role, user } = response.data.data;
+
+      // Simpan token dan role pengguna ke dalam Cookies (js-cookie)
+      const cookieOptions: Cookies.CookieAttributes = {
+        expires: 1,
+        path: "/",
+        sameSite: "strict",
+        secure:
+          typeof window !== "undefined" &&
+          window.location.protocol === "https:",
+      };
+
+      Cookies.set(TOKEN_COOKIE_KEY, access_token, cookieOptions);
+      Cookies.set(ROLE_COOKIE_KEY, role, cookieOptions);
+      if (user) {
+        Cookies.set(USER_COOKIE_KEY, JSON.stringify(user), cookieOptions);
+      }
 
       setIsSuccess(true);
-      const targetPath = getDashboardPathByRole(userRole);
-      router.push(targetPath);
+
+      // Redirect dinamis berdasarkan role pengguna
+      if (role === "admin") {
+        router.push("/admin/dashboard");
+      } else if (role === "user") {
+        router.push("/prodi/dashboard");
+      } else {
+        router.push("/login");
+      }
     } catch (err) {
       const axiosError = err as AxiosError<ApiErrorResponse>;
 
@@ -116,7 +155,7 @@ export default function LoginPage() {
           setErrorMessage(
             firstFieldErrors?.[0] ||
               data?.message ||
-              "Data yang dikirimkan tidak valid."
+              "Data kredensial yang dikirimkan tidak valid."
           );
         } else {
           setErrorType("network");
@@ -161,7 +200,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Notifikasi Error / Rate Limit 429 */}
+        {/* Notifikasi Error di UI Form (Tanpa console.log) */}
         {errorMessage && (
           <div
             role="alert"
