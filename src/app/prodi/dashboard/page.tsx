@@ -13,9 +13,8 @@ import {
   Eye,
   FileCheck2,
   FileText,
-  GraduationCap,
   Loader2,
-  LogOut,
+  Menu,
   RefreshCw,
   ShieldCheck,
   Upload,
@@ -35,10 +34,11 @@ import {
   TahapDokumenNumber,
   TaskCardItem,
 } from "@/types/dokumen";
+import ProdiSidebar from "@/components/prodi/ProdiSidebar";
 import ProdiUploadModal from "@/components/prodi/ProdiUploadModal";
 
 /**
- * Definisi 4 Tahapan Baku Pelaporan Akademik
+ * Definisi 4 Tahapan Baku Pelaporan Akademik (Sesuai SOP Format Surat Pernyataan)
  */
 const DEFAULT_TAHAPAN_BLUEPRINT: Array<{
   tahap: TahapDokumenNumber;
@@ -47,27 +47,27 @@ const DEFAULT_TAHAPAN_BLUEPRINT: Array<{
 }> = [
   {
     tahap: 1,
-    judul: "1. Kurikulum & Mata Kuliah",
+    judul: "Tahap 1 (Kurikulum & Mata Kuliah)",
     deskripsi:
-      "Dokumen struktur kurikulum aktif, sebaran mata kuliah per semester, serta RPS yang telah disahkan.",
+      "Unggah PDF Surat Pernyataan penginputan sajian kurikulum di SISFO yang masih berlaku dan ditandatangani oleh Kaprodi.",
   },
   {
     tahap: 2,
-    judul: "2. Kelas & Jadwal",
+    judul: "Tahap 2 (Kelas & Jadwal)",
     deskripsi:
-      "Daftar pembagian kelas paralel, penugasan dosen pengampu (SK Mengajar), dan jadwal perkuliahan.",
+      "Unggah PDF Surat Pernyataan kevalidan penginputan kelas dan jadwal perkuliahan yang ada di SISFO.",
   },
   {
     tahap: 3,
-    judul: "3. Nilai Perkuliahan",
+    judul: "Tahap 3 (Nilai Perkuliahan)",
     deskripsi:
-      "Rekapitulasi nilai akhir mahasiswa (KHS/DPNA), berita acara penyerahan nilai, dan distribusi indeks prestasi.",
+      "Unggah PDF Surat Pernyataan telah selesai proses entry nilai pada periode berjalan beserta rekapan laporan akhir.",
   },
   {
     tahap: 4,
-    judul: "4. Yudisium & Transkrip",
+    judul: "Tahap 4 (Yudisium & Transkrip)",
     deskripsi:
-      "Berita acara penetapan kelulusan (Yudisium), daftar lulusan periode berjalan, serta draf transkrip akademik.",
+      "Unggah PDF Surat Pernyataan bahwa prodi telah selesai memproses kelulusan mahasiswa akhir dan mendokumentasikan transkrip nilai.",
   },
 ];
 
@@ -166,6 +166,7 @@ export default function ProdiDashboardPage() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // State Daftar Periode Multi-Open & Periode Aktif Terpilih
   const [periodeList, setPeriodeList] = useState<ProdiPeriodeOption[]>(
@@ -177,7 +178,8 @@ export default function ProdiDashboardPage() {
   const [taskCards, setTaskCards] = useState<TaskCardItem[]>(() =>
     mapApiDokumenToTaskCards([])
   );
-  const [isFetchingDashboard, setIsFetchingDashboard] = useState<boolean>(false);
+  const [isFetchingDashboard, setIsFetchingDashboard] =
+    useState<boolean>(false);
 
   // State Modal Upload PDF & Modal Lihat Dokumen
   const [activeUploadTask, setActiveUploadTask] =
@@ -364,7 +366,7 @@ export default function ProdiDashboardPage() {
   const progressPercentage = Math.round((selesaiCount / totalDokumen) * 100);
 
   /**
-   * Handler saat Dropdown 'Pilih Periode Pelaporan' diubah
+   * Handler saat Dropdown 'Pilih Periode' di sudut kanan atas Header diubah
    */
   const handlePeriodeSelectChange = async (
     e: React.ChangeEvent<HTMLSelectElement>
@@ -462,7 +464,7 @@ export default function ProdiDashboardPage() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex">
       {/* React Hot Toast Container (Hijau untuk Sukses, Merah untuk Error) */}
       <Toaster
         position="top-right"
@@ -499,35 +501,47 @@ export default function ProdiDashboardPage() {
         }}
       />
 
-      {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/70">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      {/* Sidebar Navigasi Kiri (Selaras dengan Dashboard Admin) */}
+      <ProdiSidebar
+        username={safeUsername}
+        prodiName={safeProdiName}
+        fakultasLabel="Universitas Nurul Huda"
+        completedCount={selesaiCount}
+        totalCount={totalDokumen}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        onLogout={handleLogout}
+        isLoggingOut={isLoggingOut}
+      />
+
+      {/* Area Konten Utama di Sebelah Kanan */}
+      <div className="flex-1 flex flex-col min-w-0 bg-slate-50">
+        {/* Top Header Putih (Judul 'Overview Pelaporan', Tombol 'Sinkronkan', Ikon Profil, & Dropdown 'Pilih Periode') */}
+        <header className="h-16 bg-white/85 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-8 flex items-center justify-between gap-4 sticky top-0 z-30">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#0D47A1] text-white flex items-center justify-center shadow-xs">
-              <GraduationCap className="w-5 h-5 text-[#FBC02D]" />
-            </div>
+            <button
+              type="button"
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="lg:hidden p-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              aria-label="Buka navigasi"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-base tracking-tight text-slate-900">
-                  SIPASTI
-                </span>
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-blue-50 text-[#0D47A1] border border-blue-200/80">
-                  Operator Prodi
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 truncate max-w-[220px] sm:max-w-xs">
-                {safeProdiName}
-              </p>
+              <h1 className="text-base sm:text-xl font-bold text-slate-800 tracking-tight">
+                Overview Pelaporan
+              </h1>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5">
+            {/* Tombol Sinkronkan */}
             <button
               type="button"
               onClick={() => fetchDataDashboard(selectedPeriode, true)}
               disabled={isFetchingDashboard}
               title="Muat ulang status dokumen"
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200/70 text-xs font-semibold text-slate-700 transition cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs transition cursor-pointer disabled:opacity-50"
             >
               <RefreshCw
                 className={`w-3.5 h-3.5 text-[#0D47A1] ${
@@ -537,235 +551,231 @@ export default function ProdiDashboardPage() {
               <span className="hidden sm:inline">Sinkronkan</span>
             </button>
 
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200/80 text-xs text-slate-700">
+            {/* Ikon Profil Operator */}
+            <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 border border-slate-200/80 text-xs text-slate-700">
               <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span className="font-medium">{safeUsername}</span>
+              <span className="font-semibold">{safeUsername}</span>
             </div>
 
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 shadow-2xs transition cursor-pointer disabled:opacity-50"
-            >
-              <LogOut className="w-3.5 h-3.5 text-red-600" />
-              <span>{isLoggingOut ? "Keluar..." : "Keluar"}</span>
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content Container (max-w-5xl) */}
-      <main className="max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 flex-1 space-y-8">
-        {/* Banner Atas Interaktif: Dropdown 'Pilih Periode Pelaporan' (Multi-Open) & Progress Bar Dinamis */}
-        <section
-          aria-label="Pilih Periode Pelaporan dan Progres Dokumen"
-          className="rounded-2xl bg-gradient-to-r from-[#0D47A1] via-[#1565C0] to-[#1e68c8] text-white p-6 sm:p-8 shadow-md shadow-blue-900/10 border border-blue-800/30 space-y-6"
-        >
-          {/* Baris Atas: Judul & Dropdown Pilih Periode Pelaporan */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
-            <div className="space-y-1">
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[#FBC02D]">
-                <Calendar className="w-3.5 h-3.5" />
-                Pelaporan Multi-Periode Terbuka
-              </span>
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-                Kelengkapan Dokumen Program Studi
-              </h1>
-              <p className="text-xs sm:text-sm text-blue-50/90">
-                Pilih periode pelaporan yang berstatus buka dan unggah berkas
-                PDF pada setiap tahapan.
-              </p>
-            </div>
-
-            {/* Elemen Dropdown <select> 'Pilih Periode Pelaporan' */}
-            <div className="w-full md:w-72 shrink-0">
-              <label
-                htmlFor="pilih-periode-select"
-                className="block text-xs font-semibold text-blue-100 mb-1.5"
+            {/* Dropdown 'Pilih Periode' di Sudut Kanan Atas Header */}
+            <div className="relative flex items-center">
+              <Calendar className="w-4 h-4 text-[#0D47A1] pointer-events-none absolute left-3.5" />
+              <select
+                id="pilih-periode-select"
+                aria-label="Pilih Periode Pelaporan"
+                value={selectedPeriode}
+                onChange={handlePeriodeSelectChange}
+                disabled={isFetchingDashboard}
+                className="appearance-none rounded-xl border border-slate-200 bg-white pl-9 pr-9 py-2 text-xs sm:text-sm font-medium text-slate-700 shadow-sm hover:border-slate-300 focus:border-[#0D47A1] focus:outline-none focus:ring-2 focus:ring-[#0D47A1]/15 transition cursor-pointer disabled:opacity-60"
               >
-                Pilih Periode Pelaporan
-              </label>
-              <div className="relative">
-                <select
-                  id="pilih-periode-select"
-                  value={selectedPeriode}
-                  onChange={handlePeriodeSelectChange}
-                  disabled={isFetchingDashboard}
-                  className="w-full appearance-none rounded-xl border border-white/90 bg-white pl-4 pr-10 py-2.5 text-xs sm:text-sm font-semibold text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FBC02D] transition cursor-pointer disabled:opacity-60"
-                >
-                  {openPeriodeOptions.map((periode) => (
-                    <option key={periode.id} value={periode.id}>
-                      {periode.nama_periode}{" "}
-                      {periode.is_default ? "(Default)" : "(Buka)"}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-4 h-4 text-[#0D47A1] pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
+                {openPeriodeOptions.map((periode) => (
+                  <option key={periode.id} value={periode.id}>
+                    {periode.nama_periode}{" "}
+                    {periode.is_default ? "(Default)" : "(Buka)"}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3" />
+            </div>
+          </div>
+        </header>
+
+        {/* Konten Utama */}
+        <main className="p-5 sm:p-8 space-y-6 max-w-6xl w-full mx-auto flex-1">
+          {/* Banner Biru Atas: 'Pelaporan Multi-Periode Terbuka' & Progress Bar Dinamis */}
+          <section
+            aria-label="Banner Pelaporan Multi-Periode Terbuka"
+            className="rounded-2xl bg-gradient-to-r from-[#0D47A1] via-[#1565C0] to-[#1e68c8] text-white p-6 sm:p-7 shadow-sm border border-blue-800/30 space-y-5"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[#FBC02D]">
+                  <Calendar className="w-3.5 h-3.5" />
+                  {safeProdiName}
+                </span>
+                <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                  Pelaporan Multi-Periode Terbuka
+                </h2>
+                <p className="text-xs sm:text-sm text-blue-50/90 leading-relaxed">
+                  Filter periode pelaporan melalui dropdown di kanan atas.
+                  Unggah berkas PDF Surat Pernyataan sesuai tahapan SOP di
+                  bawah ini.
+                </p>
+              </div>
+
+              <div className="shrink-0">
+                <span className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/15 backdrop-blur-md border border-white/25 text-xs font-semibold text-white">
+                  <span>Periode:</span>
+                  <strong className="text-[#FBC02D]">
+                    {sanitizePlainText(currentPeriodeObj?.nama_periode || "")}
+                  </strong>
+                </span>
               </div>
             </div>
-          </div>
 
-          {/* Progress Bar Dinamis di Bawah Dropdown */}
-          <div className="rounded-xl bg-white/15 backdrop-blur-md border border-white/25 p-4 sm:p-5 space-y-2.5">
-            <div className="flex items-center justify-between text-xs sm:text-sm">
-              <span className="font-medium text-blue-50">
-                Progres Periode{" "}
-                <strong className="text-white">
-                  {sanitizePlainText(currentPeriodeObj?.nama_periode || "")}
-                </strong>
-              </span>
-              <span className="font-bold text-[#FBC02D]">
-                {selesaiCount} dari {totalDokumen} Dokumen Selesai
-              </span>
-            </div>
+            {/* Progress Bar Dinamis */}
+            <div className="rounded-xl bg-white/15 backdrop-blur-md border border-white/25 p-4 space-y-2.5">
+              <div className="flex items-center justify-between text-xs sm:text-sm">
+                <span className="font-medium text-blue-50">
+                  Capaian Kelengkapan Dokumen
+                </span>
+                <span className="font-bold text-[#FBC02D]">
+                  {selesaiCount} dari {totalDokumen} Dokumen Selesai
+                </span>
+              </div>
 
-            <div
-              role="progressbar"
-              aria-valuenow={selesaiCount}
-              aria-valuemin={0}
-              aria-valuemax={totalDokumen}
-              className="w-full h-2.5 rounded-full bg-slate-950/35 overflow-hidden p-0.5"
-            >
               <div
-                className="h-full rounded-full bg-gradient-to-r from-[#FBC02D] to-emerald-400 transition-all duration-500"
-                style={{ width: `${progressPercentage}%` }}
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* Daftar 4 Task Cards (Kartu Tugas Vertikal) */}
-        <section aria-label="Daftar Kartu Tugas Pelaporan" className="space-y-4">
-          {taskCards.map((task) => {
-            const badgeCfg = getStatusBadgeConfig(task.status);
-            const isNeedUpload =
-              task.status === "Belum Unggah" || task.status === "Revisi";
-
-            // Sanitasi anti-XSS sebelum dirender sebagai plain text
-            const safeJudul = sanitizePlainText(task.judul);
-            const safeDeskripsi = sanitizePlainText(task.deskripsi);
-            const safeCatatanRevisi = task.catatanRevisi
-              ? sanitizePlainText(task.catatanRevisi)
-              : null;
-            const safeFileName = task.filePath
-              ? sanitizePlainText(
-                  task.filePath.split("/").pop() || task.filePath
-                )
-              : null;
-
-            return (
-              <article
-                key={`${selectedPeriode}-tahap-${task.tahap}`}
-                className="bg-white rounded-2xl border border-slate-200/85 shadow-xs hover:shadow-md transition-all duration-200 p-5 sm:p-6"
+                role="progressbar"
+                aria-valuenow={selesaiCount}
+                aria-valuemin={0}
+                aria-valuemax={totalDokumen}
+                className="w-full h-2.5 rounded-full bg-slate-950/35 overflow-hidden p-0.5"
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  {/* Info Tahapan & Badge Status */}
-                  <div className="flex items-start gap-4 flex-1">
-                    <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 mt-0.5 ${badgeCfg.stepCircleClass}`}
-                    >
-                      {task.status === "Selesai" ? (
-                        <FileCheck2 className="w-5 h-5" />
-                      ) : (
-                        <span>0{task.tahap}</span>
-                      )}
-                    </div>
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-[#FBC02D] to-emerald-400 transition-all duration-500"
+                  style={{ width: `${progressPercentage}%` }}
+                />
+              </div>
+            </div>
+          </section>
 
-                    <div className="space-y-1.5 flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2.5">
-                        <h2 className="text-base sm:text-lg font-bold text-slate-900">
-                          {safeJudul}
-                        </h2>
+          {/* 4 Kartu Tugas (Task Cards) Vertikal */}
+          <section
+            id="daftar-kartu-tugas"
+            aria-label="Daftar Kartu Tugas Pelaporan"
+            className={`space-y-4 transition-opacity duration-200 ${
+              isFetchingDashboard ? "opacity-60" : "opacity-100"
+            }`}
+          >
+            {taskCards.map((task) => {
+              const badgeCfg = getStatusBadgeConfig(task.status);
+              const isNeedUpload =
+                task.status === "Belum Unggah" || task.status === "Revisi";
 
-                        {/* Badge Status */}
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold border ${badgeCfg.badgeClass}`}
-                        >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${badgeCfg.dotClass}`}
-                          />
-                          {task.status}
-                        </span>
+              // Sanitasi anti-XSS sebelum dirender sebagai plain text
+              const safeJudul = sanitizePlainText(task.judul);
+              const safeDeskripsi = sanitizePlainText(task.deskripsi);
+              const safeCatatanRevisi = task.catatanRevisi
+                ? sanitizePlainText(task.catatanRevisi)
+                : null;
+              const safeFileName = task.filePath
+                ? sanitizePlainText(
+                    task.filePath.split("/").pop() || task.filePath
+                  )
+                : null;
+
+              return (
+                <article
+                  key={`${selectedPeriode}-tahap-${task.tahap}`}
+                  className="bg-white rounded-xl border border-slate-200/85 shadow-sm hover:shadow-md transition-all duration-200 p-5 sm:p-6"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    {/* Info Tahapan & Badge Status */}
+                    <div className="flex items-start gap-4 flex-1">
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 mt-0.5 ${badgeCfg.stepCircleClass}`}
+                      >
+                        {task.status === "Selesai" ? (
+                          <FileCheck2 className="w-5 h-5" />
+                        ) : (
+                          <span>0{task.tahap}</span>
+                        )}
                       </div>
 
-                      <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                        {safeDeskripsi}
-                      </p>
+                      <div className="space-y-1.5 flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                            {safeJudul}
+                          </h3>
 
-                      {safeFileName && (
-                        <div className="pt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
-                          <span className="inline-flex items-center gap-1.5 font-medium text-slate-700">
-                            <FileText className="w-3.5 h-3.5 text-[#0D47A1]" />
-                            {safeFileName}
+                          {/* Badge Status */}
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold border ${badgeCfg.badgeClass}`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${badgeCfg.dotClass}`}
+                            />
+                            {task.status}
                           </span>
-                          {task.tanggalUpload && (
-                            <span className="inline-flex items-center gap-1 text-slate-400">
-                              <Clock className="w-3 h-3" />
-                              {new Date(task.tanggalUpload).toLocaleDateString(
-                                "id-ID",
-                                {
+                        </div>
+
+                        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                          {safeDeskripsi}
+                        </p>
+
+                        {safeFileName && (
+                          <div className="pt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                            <span className="inline-flex items-center gap-1.5 font-medium text-slate-700">
+                              <FileText className="w-3.5 h-3.5 text-[#0D47A1]" />
+                              {safeFileName}
+                            </span>
+                            {task.tanggalUpload && (
+                              <span className="inline-flex items-center gap-1 text-slate-400">
+                                <Clock className="w-3 h-3" />
+                                {new Date(
+                                  task.tanggalUpload
+                                ).toLocaleDateString("id-ID", {
                                   day: "2-digit",
                                   month: "short",
                                   year: "numeric",
-                                }
-                              )}
-                            </span>
-                          )}
-                        </div>
+                                })}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Tombol Aksi: 'Upload PDF' (Primary) atau 'Lihat Dokumen' (Outline) */}
+                    <div className="shrink-0 sm:self-center">
+                      {isNeedUpload ? (
+                        <button
+                          type="button"
+                          onClick={() => setActiveUploadTask(task)}
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#0D47A1] hover:bg-[#1565C0] active:bg-blue-900 text-white text-xs sm:text-sm font-semibold shadow-sm shadow-blue-900/15 transition cursor-pointer"
+                        >
+                          <Upload className="w-4 h-4" />
+                          <span>Upload PDF</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setActivePreviewTask(task)}
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-blue-50/50 text-[#0D47A1] border border-[#0D47A1]/35 hover:border-[#0D47A1] text-xs sm:text-sm font-semibold transition cursor-pointer"
+                        >
+                          <Eye className="w-4 h-4" />
+                          <span>Lihat Dokumen</span>
+                        </button>
                       )}
                     </div>
                   </div>
 
-                  {/* Tombol Aksi: 'Upload PDF' (Primary) atau 'Lihat Dokumen' (Outline) */}
-                  <div className="shrink-0 sm:self-center">
-                    {isNeedUpload ? (
-                      <button
-                        type="button"
-                        onClick={() => setActiveUploadTask(task)}
-                        className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#0D47A1] hover:bg-[#1565C0] active:bg-blue-900 text-white text-xs sm:text-sm font-semibold shadow-sm shadow-blue-900/15 transition cursor-pointer"
-                      >
-                        <Upload className="w-4 h-4" />
-                        <span>Upload PDF</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setActivePreviewTask(task)}
-                        className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-blue-50/50 text-[#0D47A1] border border-[#0D47A1]/35 hover:border-[#0D47A1] text-xs sm:text-sm font-semibold transition cursor-pointer"
-                      >
-                        <Eye className="w-4 h-4" />
-                        <span>Lihat Dokumen</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Alert Box Revisi: Khusus untuk status 'Revisi' (bg-red-50 text-red-700) */}
-                {task.status === "Revisi" && (
-                  <div
-                    role="alert"
-                    className="mt-4 rounded-xl bg-red-50 text-red-700 border border-red-200 p-4 flex items-start gap-3"
-                  >
-                    <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-                    <div className="space-y-1 text-xs sm:text-sm">
-                      <p className="font-bold text-red-800">
-                        Catatan Revisi dari Admin:
-                      </p>
-                      <p className="leading-relaxed">
-                        {safeCatatanRevisi ||
-                          "Dokumen memerlukan revisi. Silakan perbaiki dan unggah ulang berkas PDF Anda."}
-                      </p>
+                  {/* Alert Box Revisi: Khusus untuk status 'Revisi' (bg-red-50 text-red-700) */}
+                  {task.status === "Revisi" && (
+                    <div
+                      role="alert"
+                      className="mt-4 rounded-xl bg-red-50 text-red-700 border border-red-200 p-4 flex items-start gap-3"
+                    >
+                      <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                      <div className="space-y-1 text-xs sm:text-sm">
+                        <p className="font-bold text-red-800">
+                          Catatan Revisi dari Admin:
+                        </p>
+                        <p className="leading-relaxed">
+                          {safeCatatanRevisi ||
+                            "Dokumen memerlukan revisi. Silakan perbaiki dan unggah ulang berkas PDF Anda."}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </article>
-            );
-          })}
-        </section>
-      </main>
+                  )}
+                </article>
+              );
+            })}
+          </section>
+        </main>
+      </div>
 
-      {/* Komponen Modal Upload PDF Terintegrasi dengan POST /api/dokumen/upload */}
+      {/* Komponen Modal Upload PDF Terintegrasi dengan POST /api/dokumen/upload (FormData) */}
       <ProdiUploadModal
         isOpen={Boolean(activeUploadTask)}
         targetTask={activeUploadTask}
