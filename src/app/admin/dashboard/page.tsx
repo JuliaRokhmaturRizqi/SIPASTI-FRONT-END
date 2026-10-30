@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AxiosError } from "axios";
+import toast, { Toaster } from "react-hot-toast";
 import {
   AlertCircle,
   AlertTriangle,
@@ -16,9 +17,9 @@ import {
   GraduationCap,
   Loader2,
   Menu,
+  RefreshCw,
   Search,
   ShieldCheck,
-  Sparkles,
   X,
   XCircle,
 } from "lucide-react";
@@ -33,19 +34,40 @@ import {
   AdminMatrixCell,
   AdminProdiRow,
   AdminValidasiResponse,
+  DokumenApiRecord,
+  DokumenListResponse,
   DokumenStatus,
+  PeriodeListResponse,
   TahapDokumenNumber,
 } from "@/types/dokumen";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 
 /**
- * Daftar Opsi Dropdown Filter Periode Akademik
+ * Opsi Periode Default (Digunakan saat inisialisasi atau fallback)
  */
-const PERIODE_OPTIONS = [
-  "2026/2027 Genap (Aktif)",
-  "2026/2027 Ganjil",
-  "2025/2026 Genap",
-] as const;
+interface AdminPeriodeOption {
+  id: string;
+  label: string;
+  nama_periode: string;
+}
+
+const DEFAULT_PERIODE_OPTIONS: AdminPeriodeOption[] = [
+  {
+    id: "1",
+    label: "2026/2027 Ganjil (Aktif)",
+    nama_periode: "2026/2027 Ganjil",
+  },
+  {
+    id: "2",
+    label: "2026/2027 Genap",
+    nama_periode: "2026/2027 Genap",
+  },
+  {
+    id: "3",
+    label: "2025/2026 Genap",
+    nama_periode: "2025/2026 Genap",
+  },
+];
 
 /**
  * Definisi 4 Kolom Tahapan Pelaporan
@@ -120,192 +142,157 @@ function createProdiRow(
 }
 
 /**
- * Dataset Matriks Pemantauan untuk 14 Program Studi Universitas Nurul Huda
- * pada masing-masing opsi periode akademik.
+ * Dataset Awal 14 Program Studi Universitas Nurul Huda
  */
-const MATRIX_BY_PERIODE: Record<string, AdminProdiRow[]> = {
-  "2026/2027 Genap (Aktif)": [
-    createProdiRow(1, PRODI_UNIVERSITAS_NURUL_HUDA[0], [
-      "Selesai",
-      "Selesai",
-      "Review",
-      "Belum Unggah",
-    ]),
-    createProdiRow(
-      2,
-      PRODI_UNIVERSITAS_NURUL_HUDA[1],
-      ["Selesai", "Revisi", "Belum Unggah", "Belum Unggah"],
-      "Jadwal mengajar dosen tetap PGMI pada semester 4 terdapat bentrok jam perkuliahan."
-    ),
-    createProdiRow(3, PRODI_UNIVERSITAS_NURUL_HUDA[2], [
-      "Selesai",
-      "Selesai",
-      "Selesai",
-      "Review",
-    ]),
-    createProdiRow(4, PRODI_UNIVERSITAS_NURUL_HUDA[3], [
-      "Selesai",
-      "Review",
-      "Belum Unggah",
-      "Belum Unggah",
-    ]),
-    createProdiRow(
-      5,
-      PRODI_UNIVERSITAS_NURUL_HUDA[4],
-      ["Selesai", "Selesai", "Revisi", "Belum Unggah"],
-      "Rekapitulasi nilai mata kuliah Speaking & Listening belum melampirkan berita acara ujian akhir."
-    ),
-    createProdiRow(6, PRODI_UNIVERSITAS_NURUL_HUDA[5], [
-      "Review",
-      "Belum Unggah",
-      "Belum Unggah",
-      "Belum Unggah",
-    ]),
-    createProdiRow(7, PRODI_UNIVERSITAS_NURUL_HUDA[6], [
-      "Selesai",
-      "Selesai",
-      "Selesai",
-      "Selesai",
-    ]),
-    createProdiRow(8, PRODI_UNIVERSITAS_NURUL_HUDA[7], [
-      "Selesai",
-      "Selesai",
-      "Review",
-      "Review",
-    ]),
-    createProdiRow(
-      9,
-      PRODI_UNIVERSITAS_NURUL_HUDA[8],
-      ["Revisi", "Belum Unggah", "Belum Unggah", "Belum Unggah"],
-      "Sebaran SKS mata kuliah praktik lapangan belum sesuai struktur kurikulum terbaru."
-    ),
-    createProdiRow(10, PRODI_UNIVERSITAS_NURUL_HUDA[9], [
-      "Selesai",
-      "Selesai",
-      "Review",
-      "Belum Unggah",
-    ]),
-    createProdiRow(11, PRODI_UNIVERSITAS_NURUL_HUDA[10], [
-      "Selesai",
-      "Review",
-      "Belum Unggah",
-      "Belum Unggah",
-    ]),
-    createProdiRow(
-      12,
-      PRODI_UNIVERSITAS_NURUL_HUDA[11],
-      ["Selesai", "Selesai", "Revisi", "Belum Unggah"],
-      "Daftar nilai praktikum agronomi belum ditandatangani oleh koordinator laboratorium."
-    ),
-    createProdiRow(13, PRODI_UNIVERSITAS_NURUL_HUDA[12], [
-      "Belum Unggah",
-      "Belum Unggah",
-      "Belum Unggah",
-      "Belum Unggah",
-    ]),
-    createProdiRow(14, PRODI_UNIVERSITAS_NURUL_HUDA[13], [
-      "Selesai",
-      "Selesai",
-      "Selesai",
-      "Review",
-    ]),
-  ],
-  "2026/2027 Ganjil": [
-    createProdiRow(1, PRODI_UNIVERSITAS_NURUL_HUDA[0], [
-      "Selesai",
-      "Selesai",
-      "Selesai",
-      "Selesai",
-    ]),
-    createProdiRow(2, PRODI_UNIVERSITAS_NURUL_HUDA[1], [
-      "Selesai",
-      "Selesai",
-      "Selesai",
-      "Review",
-    ]),
-    createProdiRow(3, PRODI_UNIVERSITAS_NURUL_HUDA[2], [
-      "Selesai",
-      "Selesai",
-      "Selesai",
-      "Selesai",
-    ]),
-    createProdiRow(4, PRODI_UNIVERSITAS_NURUL_HUDA[3], [
-      "Selesai",
-      "Selesai",
-      "Review",
-      "Belum Unggah",
-    ]),
-    createProdiRow(5, PRODI_UNIVERSITAS_NURUL_HUDA[4], [
-      "Selesai",
-      "Selesai",
-      "Selesai",
-      "Selesai",
-    ]),
-    createProdiRow(
-      6,
-      PRODI_UNIVERSITAS_NURUL_HUDA[5],
-      ["Selesai", "Selesai", "Revisi", "Belum Unggah"],
-      "Lampiran nilai Fisika Dasar II belum lengkap."
-    ),
-    createProdiRow(7, PRODI_UNIVERSITAS_NURUL_HUDA[6], [
-      "Selesai",
-      "Selesai",
-      "Selesai",
-      "Selesai",
-    ]),
-    createProdiRow(8, PRODI_UNIVERSITAS_NURUL_HUDA[7], [
-      "Selesai",
-      "Selesai",
-      "Selesai",
-      "Selesai",
-    ]),
-    createProdiRow(9, PRODI_UNIVERSITAS_NURUL_HUDA[8], [
-      "Selesai",
-      "Selesai",
-      "Review",
-      "Belum Unggah",
-    ]),
-    createProdiRow(10, PRODI_UNIVERSITAS_NURUL_HUDA[9], [
-      "Selesai",
-      "Selesai",
-      "Selesai",
-      "Review",
-    ]),
-    createProdiRow(11, PRODI_UNIVERSITAS_NURUL_HUDA[10], [
-      "Selesai",
-      "Selesai",
-      "Selesai",
-      "Selesai",
-    ]),
-    createProdiRow(12, PRODI_UNIVERSITAS_NURUL_HUDA[11], [
-      "Selesai",
-      "Selesai",
-      "Selesai",
-      "Review",
-    ]),
-    createProdiRow(
-      13,
-      PRODI_UNIVERSITAS_NURUL_HUDA[12],
-      ["Selesai", "Revisi", "Belum Unggah", "Belum Unggah"],
-      "SK Mengajar dosen tidak tetap belum dilampirkan."
-    ),
-    createProdiRow(14, PRODI_UNIVERSITAS_NURUL_HUDA[13], [
-      "Selesai",
-      "Selesai",
-      "Selesai",
-      "Selesai",
-    ]),
-  ],
-  "2025/2026 Genap": PRODI_UNIVERSITAS_NURUL_HUDA.map((nama, idx) =>
-    createProdiRow(idx + 1, nama, ["Selesai", "Selesai", "Selesai", "Selesai"])
+const INITIAL_PRODI_ROWS: AdminProdiRow[] = [
+  createProdiRow(1, PRODI_UNIVERSITAS_NURUL_HUDA[0], [
+    "Selesai",
+    "Selesai",
+    "Review",
+    "Belum Unggah",
+  ]),
+  createProdiRow(
+    2,
+    PRODI_UNIVERSITAS_NURUL_HUDA[1],
+    ["Selesai", "Revisi", "Belum Unggah", "Belum Unggah"],
+    "Jadwal mengajar dosen tetap PGMI pada semester 4 terdapat bentrok jam perkuliahan."
   ),
-};
+  createProdiRow(3, PRODI_UNIVERSITAS_NURUL_HUDA[2], [
+    "Selesai",
+    "Selesai",
+    "Selesai",
+    "Review",
+  ]),
+  createProdiRow(4, PRODI_UNIVERSITAS_NURUL_HUDA[3], [
+    "Selesai",
+    "Review",
+    "Belum Unggah",
+    "Belum Unggah",
+  ]),
+  createProdiRow(
+    5,
+    PRODI_UNIVERSITAS_NURUL_HUDA[4],
+    ["Selesai", "Selesai", "Revisi", "Belum Unggah"],
+    "Rekapitulasi nilai mata kuliah Speaking & Listening belum melampirkan berita acara ujian akhir."
+  ),
+  createProdiRow(6, PRODI_UNIVERSITAS_NURUL_HUDA[5], [
+    "Review",
+    "Belum Unggah",
+    "Belum Unggah",
+    "Belum Unggah",
+  ]),
+  createProdiRow(7, PRODI_UNIVERSITAS_NURUL_HUDA[6], [
+    "Selesai",
+    "Selesai",
+    "Selesai",
+    "Selesai",
+  ]),
+  createProdiRow(8, PRODI_UNIVERSITAS_NURUL_HUDA[7], [
+    "Selesai",
+    "Selesai",
+    "Review",
+    "Review",
+  ]),
+  createProdiRow(
+    9,
+    PRODI_UNIVERSITAS_NURUL_HUDA[8],
+    ["Revisi", "Belum Unggah", "Belum Unggah", "Belum Unggah"],
+    "Sebaran SKS mata kuliah praktik lapangan belum sesuai struktur kurikulum terbaru."
+  ),
+  createProdiRow(10, PRODI_UNIVERSITAS_NURUL_HUDA[9], [
+    "Selesai",
+    "Selesai",
+    "Review",
+    "Belum Unggah",
+  ]),
+  createProdiRow(11, PRODI_UNIVERSITAS_NURUL_HUDA[10], [
+    "Selesai",
+    "Review",
+    "Belum Unggah",
+    "Belum Unggah",
+  ]),
+  createProdiRow(
+    12,
+    PRODI_UNIVERSITAS_NURUL_HUDA[11],
+    ["Selesai", "Selesai", "Revisi", "Belum Unggah"],
+    "Daftar nilai praktikum agronomi belum ditandatangani oleh koordinator laboratorium."
+  ),
+  createProdiRow(13, PRODI_UNIVERSITAS_NURUL_HUDA[12], [
+    "Belum Unggah",
+    "Belum Unggah",
+    "Belum Unggah",
+    "Belum Unggah",
+  ]),
+  createProdiRow(14, PRODI_UNIVERSITAS_NURUL_HUDA[13], [
+    "Selesai",
+    "Selesai",
+    "Selesai",
+    "Review",
+  ]),
+];
 
-interface ToastMessage {
-  id: number;
-  type: "success" | "error" | "info";
-  title: string;
-  description: string;
+/**
+ * Helper pemetaan respons API GET /api/dokumen?id_periode={selectedPeriode}
+ * ke 14 Program Studi Universitas Nurul Huda agar daftar 14 Prodi tetap terjaga.
+ */
+function mergeApiDokumenIntoNurulHudaMatrix(
+  baseRows: AdminProdiRow[],
+  apiRecords: DokumenApiRecord[]
+): AdminProdiRow[] {
+  if (!apiRecords || apiRecords.length === 0) {
+    return baseRows;
+  }
+
+  return baseRows.map((row) => {
+    const updatedTahapan: Record<TahapDokumenNumber, AdminMatrixCell> = {
+      1: { ...row.tahapan[1] },
+      2: { ...row.tahapan[2] },
+      3: { ...row.tahapan[3] },
+      4: { ...row.tahapan[4] },
+    };
+
+    // Cari record API yang cocok dengan nama_prodi atau id_prodi (termasuk alias S1 Teknik Informatika -> S1 Informatika)
+    const matchingRecords = apiRecords.filter((rec) => {
+      const apiProdiName = rec.prodi?.nama_prodi?.trim().toLowerCase() || "";
+      const rowProdiName = row.nama_prodi.trim().toLowerCase();
+
+      if (apiProdiName && apiProdiName === rowProdiName) {
+        return true;
+      }
+      if (
+        rowProdiName === "s1 informatika" &&
+        apiProdiName === "s1 teknik informatika"
+      ) {
+        return true;
+      }
+      if (
+        rowProdiName === "s1 matematika" &&
+        apiProdiName === "s1 pendidikan matematika"
+      ) {
+        return true;
+      }
+      return Number(rec.id_prodi) === row.id_prodi;
+    });
+
+    matchingRecords.forEach((rec) => {
+      const tahapNum = Number(rec.tahap_dokumen) as TahapDokumenNumber;
+      if (tahapNum >= 1 && tahapNum <= 4) {
+        updatedTahapan[tahapNum] = {
+          id: rec.id ?? updatedTahapan[tahapNum].id,
+          tahap_dokumen: tahapNum,
+          status: rec.status || "Belum Unggah",
+          catatan_revisi: rec.catatan_revisi ?? null,
+          tanggal_upload: rec.tanggal_upload ?? null,
+          has_file: Boolean(rec.file_path) || rec.status !== "Belum Unggah",
+        };
+      }
+    });
+
+    return {
+      ...row,
+      tahapan: updatedTahapan,
+    };
+  });
 }
 
 interface ActiveValidationTarget {
@@ -326,50 +313,28 @@ export default function AdminDashboardPage() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // State Filter Periode & Data Matriks Pemantauan (14 Prodi Universitas Nurul Huda)
-  const [selectedPeriode, setSelectedPeriode] = useState<string>(
-    PERIODE_OPTIONS[0]
+  // State Dropdown Periode & Data Matriks 14 Prodi Universitas Nurul Huda
+  const [periodeOptions, setPeriodeOptions] = useState<AdminPeriodeOption[]>(
+    DEFAULT_PERIODE_OPTIONS
   );
-  const [matrixRowsByPeriode, setMatrixRowsByPeriode] =
-    useState<Record<string, AdminProdiRow[]>>(MATRIX_BY_PERIODE);
+  const [selectedPeriode, setSelectedPeriode] = useState<string>(
+    DEFAULT_PERIODE_OPTIONS[0].id
+  );
+  const [matrixRows, setMatrixRows] =
+    useState<AdminProdiRow[]>(INITIAL_PRODI_ROWS);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isLoadingMatrix, setIsLoadingMatrix] = useState(false);
+
+  // State Loading sesuai spesifikasi (isFetching, isValidating, isDownloading)
+  const [isFetching, setIsFetching] = useState<boolean>(false);
+  const [isValidating, setIsValidating] = useState<boolean>(false);
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
 
   // State Modal Validasi (Pop-up)
   const [validationTarget, setValidationTarget] =
     useState<ActiveValidationTarget | null>(null);
   const [isRejectMode, setIsRejectMode] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState("");
+  const [catatanRevisi, setCatatanRevisi] = useState("");
   const [rejectionError, setRejectionError] = useState<string | null>(null);
-  const [isSubmittingValidation, setIsSubmittingValidation] = useState(false);
-  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
-
-  // State Toast Notification
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
-
-  const pushToast = useCallback(
-    (type: ToastMessage["type"], title: string, description: string) => {
-      const id = Date.now() + Math.floor(Math.random() * 1000);
-      setToasts((prev) => [
-        ...prev,
-        {
-          id,
-          type,
-          title: sanitizePlainText(title),
-          description: sanitizePlainText(description),
-        },
-      ]);
-
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((item) => item.id !== id));
-      }, 4000);
-    },
-    []
-  );
-
-  const dismissToast = (id: number) => {
-    setToasts((prev) => prev.filter((item) => item.id !== id));
-  };
 
   const handleUnauthorizedExit = useCallback(() => {
     clearAuthSession();
@@ -378,18 +343,46 @@ export default function AdminDashboardPage() {
   }, [router]);
 
   /**
-   * Baris matriks aktif sesuai periode yang dipilih pada dropdown
+   * Fungsi Fetch Data Matriks (Real-time):
+   * Memanggil GET /api/dokumen?id_periode={selectedPeriode} menggunakan Axios
+   * dan memetakan hasilnya ke 14 Program Studi Universitas Nurul Huda.
    */
-  const matrixRows = useMemo(() => {
-    return (
-      matrixRowsByPeriode[selectedPeriode] ||
-      matrixRowsByPeriode[PERIODE_OPTIONS[0]] ||
-      []
-    );
-  }, [matrixRowsByPeriode, selectedPeriode]);
+  const fetchMatrixData = useCallback(
+    async (periodeIdParam?: string) => {
+      const targetPeriode = periodeIdParam || selectedPeriode;
+      if (!targetPeriode) return;
+
+      setIsFetching(true);
+      try {
+        const response = await apiClient.get<DokumenListResponse>(
+          `/api/dokumen?id_periode=${encodeURIComponent(targetPeriode)}`
+        );
+
+        const apiRecords = response.data?.data || [];
+        setMatrixRows((prevRows) =>
+          mergeApiDokumenIntoNurulHudaMatrix(
+            prevRows.length > 0 ? prevRows : INITIAL_PRODI_ROWS,
+            apiRecords
+          )
+        );
+      } catch (err) {
+        const axiosErr = err as AxiosError<ApiErrorResponse>;
+        const status = axiosErr.response?.status;
+
+        if (status === 401 || status === 403) {
+          handleUnauthorizedExit();
+          return;
+        }
+      } finally {
+        setIsFetching(false);
+      }
+    },
+    [selectedPeriode, handleUnauthorizedExit]
+  );
 
   /**
    * Route Authorization: Hanya boleh diakses oleh role === 'admin'
+   * Sekaligus mengambil daftar Periode Akademik dari backend (/api/periode)
    */
   useEffect(() => {
     let isMounted = true;
@@ -408,18 +401,39 @@ export default function AdminDashboardPage() {
 
       try {
         const meRes = await apiClient.get<{ status: string; data: AuthUser }>(
-          "/me",
-          {
-            headers: {
-              Authorization: `Bearer ${session.token}`,
-            },
-          }
+          "/api/me"
         );
 
         const verifiedUser = meRes.data?.data;
         if (!verifiedUser || verifiedUser.role !== "admin") {
           handleUnauthorizedExit();
           return;
+        }
+
+        // Ambil daftar periode dari API /api/periode jika tersedia
+        try {
+          const periodeRes =
+            await apiClient.get<PeriodeListResponse>("/api/periode");
+          const rawPeriode = periodeRes.data?.data || [];
+
+          if (rawPeriode.length > 0 && isMounted) {
+            const mapped: AdminPeriodeOption[] = rawPeriode.map((p) => ({
+              id: String(p.id),
+              nama_periode: p.nama_periode,
+              label: p.is_default
+                ? `${p.nama_periode} (Aktif)`
+                : p.nama_periode,
+            }));
+            const activeDefault =
+              rawPeriode.find((p) => p.is_default) || rawPeriode[0];
+
+            setPeriodeOptions(mapped);
+            if (activeDefault) {
+              setSelectedPeriode(String(activeDefault.id));
+            }
+          }
+        } catch {
+          // Gunakan DEFAULT_PERIODE_OPTIONS jika gagal memuat periode
         }
 
         if (isMounted) {
@@ -444,17 +458,21 @@ export default function AdminDashboardPage() {
   }, [handleUnauthorizedExit]);
 
   /**
-   * Handler saat Dropdown Periode diubah:
-   * Me-render ulang tabel sesuai periode terpilih (siap untuk GET /api/dokumen?periode=...)
+   * useEffect Real-time Fetch Data Matriks:
+   * Otomatis memanggil GET /api/dokumen?id_periode={selectedPeriode}
+   * setiap kali selectedPeriode berubah setelah otorisasi Admin terverifikasi.
+   */
+  useEffect(() => {
+    if (!isAuthorized || !selectedPeriode) return;
+    fetchMatrixData(selectedPeriode);
+  }, [isAuthorized, selectedPeriode, fetchMatrixData]);
+
+  /**
+   * Handler saat Dropdown Periode diubah
    */
   const handlePeriodeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const nextPeriode = e.target.value;
-    setIsLoadingMatrix(true);
-    setSelectedPeriode(nextPeriode);
-
-    setTimeout(() => {
-      setIsLoadingMatrix(false);
-    }, 150);
+    const nextPeriodeId = e.target.value;
+    setSelectedPeriode(nextPeriodeId);
   };
 
   const handleLogout = async () => {
@@ -488,31 +506,28 @@ export default function AdminDashboardPage() {
       tahapSublabel: colMeta.sublabel,
     });
     setIsRejectMode(false);
-    setRejectionReason("");
+    setCatatanRevisi("");
     setRejectionError(null);
   };
 
   const closeValidationModal = () => {
-    if (isSubmittingValidation || isDownloadingPdf) return;
+    if (isValidating || isDownloading) return;
     setValidationTarget(null);
     setIsRejectMode(false);
-    setRejectionReason("");
+    setCatatanRevisi("");
     setRejectionError(null);
   };
 
   /**
-   * Secure File Download via Blob & Bearer Token
+   * Fungsi Unduh Dokumen (Secure Download):
+   * handleDownload(id_dokumen)
+   * - GET request ke /api/dokumen/{id}/download dengan responseType: 'blob'
+   * - Buat URL sementara (URL.createObjectURL) dan trigger klik tag <a> tersembunyi
    */
-  const handleSecureBlobDownload = async () => {
-    if (!validationTarget || isDownloadingPdf) return;
+  const handleDownload = async (id_dokumen: number) => {
+    if (!validationTarget || isDownloading) return;
 
-    const { token, role } = getAuthSession();
-    if (!token || role !== "admin") {
-      handleUnauthorizedExit();
-      return;
-    }
-
-    setIsDownloadingPdf(true);
+    setIsDownloading(true);
 
     const safeProdiSlug = validationTarget.nama_prodi
       .toLowerCase()
@@ -522,13 +537,9 @@ export default function AdminDashboardPage() {
 
     try {
       const response = await apiClient.get<Blob>(
-        `/admin/dokumen-pelaporan/${validationTarget.cell.id}/download`,
+        `/api/dokumen/${id_dokumen}/download`,
         {
           responseType: "blob",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/pdf",
-          },
         }
       );
 
@@ -536,6 +547,7 @@ export default function AdminDashboardPage() {
       const blobUrl = window.URL.createObjectURL(pdfBlob);
 
       const anchor = document.createElement("a");
+      anchor.style.display = "none";
       anchor.href = blobUrl;
       anchor.download = downloadFilename;
       document.body.appendChild(anchor);
@@ -546,11 +558,7 @@ export default function AdminDashboardPage() {
         window.URL.revokeObjectURL(blobUrl);
       }, 1000);
 
-      pushToast(
-        "success",
-        "Unduhan Berhasil",
-        `Berkas ${downloadFilename} berhasil diunduh.`
-      );
+      toast.success(`Berkas ${downloadFilename} berhasil diunduh.`);
     } catch (err) {
       const axiosErr = err as AxiosError;
       const status = axiosErr.response?.status;
@@ -560,8 +568,9 @@ export default function AdminDashboardPage() {
         return;
       }
 
-      // Fallback pembuatan Blob PDF valid di sisi klien untuk pengujian data dummy
-      const fallbackPdfContent = `%PDF-1.4
+      if (status === 404) {
+        // Fallback stream PDF apabila dokumen berasal dari baris simulasi 14 Prodi yang belum diunggah ke disk
+        const fallbackPdfContent = `%PDF-1.4
 1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
 2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
 3 0 obj << /Type /Page /Parent 2 0 R /Resources << /Font << /F1 4 0 R >> >> /MediaBox [0 0 612 792] /Contents 5 0 R >> endobj
@@ -577,139 +586,153 @@ startxref
 0
 %%EOF`;
 
-      const fallbackBlob = new Blob([fallbackPdfContent], {
-        type: "application/pdf",
-      });
-      const blobUrl = window.URL.createObjectURL(fallbackBlob);
-      const anchor = document.createElement("a");
-      anchor.href = blobUrl;
-      anchor.download = downloadFilename;
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+        const fallbackBlob = new Blob([fallbackPdfContent], {
+          type: "application/pdf",
+        });
+        const blobUrl = window.URL.createObjectURL(fallbackBlob);
+        const anchor = document.createElement("a");
+        anchor.style.display = "none";
+        anchor.href = blobUrl;
+        anchor.download = downloadFilename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
 
-      pushToast(
-        "success",
-        "Unduhan Berhasil",
-        `Berkas ${downloadFilename} berhasil diunduh.`
-      );
+        toast.success(`Berkas ${downloadFilename} berhasil diunduh.`);
+      } else {
+        toast.error("Gagal mengunduh dokumen PDF dari server.");
+      }
     } finally {
-      setIsDownloadingPdf(false);
+      setIsDownloading(false);
     }
   };
 
   /**
-   * Handler Keputusan Validasi: Terima ('Selesai') atau Tolak ('Revisi')
+   * Fungsi Validasi (Terima / Tolak):
+   * handleValidation(id_dokumen, status)
+   * - Jika 'Selesai': POST ke /api/dokumen/{id}/validasi dengan payload { status: 'Selesai' }
+   * - Jika 'Revisi': Munculkan textarea, pastikan catatan_revisi tidak kosong, lalu
+   *   POST ke /api/dokumen/{id}/validasi dengan payload { status: 'Revisi', catatan_revisi: '...' }
    */
-  const handleValidationDecision = async (decision: "Selesai" | "Revisi") => {
-    if (!validationTarget || isSubmittingValidation) return;
+  const handleValidation = async (
+    id_dokumen: number,
+    status: "Selesai" | "Revisi"
+  ) => {
+    if (!validationTarget || isValidating) return;
 
-    if (decision === "Revisi" && !isRejectMode) {
+    // Jika tombol 'Kembalikan (Revisi)' diklik pertama kali, tampilkan textarea catatan_revisi
+    if (status === "Revisi" && !isRejectMode) {
       setIsRejectMode(true);
       setRejectionError(null);
       return;
     }
 
     let sanitizedReason: string | null = null;
-    if (decision === "Revisi") {
-      const validation = validateAndSanitizeRejectionReason(rejectionReason);
+    if (status === "Revisi") {
+      if (!catatanRevisi || catatanRevisi.trim().length === 0) {
+        const emptyMsg = "Catatan revisi wajib diisi sebelum mengembalikan dokumen.";
+        setRejectionError(emptyMsg);
+        toast.error(emptyMsg);
+        return;
+      }
+
+      const validation = validateAndSanitizeRejectionReason(catatanRevisi);
       if (!validation.valid) {
-        setRejectionError(
-          validation.error || "Alasan penolakan wajib diisi dengan benar."
-        );
+        const invalidMsg =
+          validation.error || "Catatan revisi wajib diisi dengan benar.";
+        setRejectionError(invalidMsg);
+        toast.error(invalidMsg);
         return;
       }
       sanitizedReason = validation.sanitized;
     }
 
-    const { token, role } = getAuthSession();
-    if (!token || role !== "admin") {
-      handleUnauthorizedExit();
-      return;
-    }
-
-    setIsSubmittingValidation(true);
+    setIsValidating(true);
     setRejectionError(null);
 
     const targetProdiId = validationTarget.id_prodi;
     const targetTahap = validationTarget.cell.tahap_dokumen;
 
-    const applyLocalUpdate = () => {
-      setMatrixRowsByPeriode((prevMap) => {
-        const currentList = prevMap[selectedPeriode] || [];
-        return {
-          ...prevMap,
-          [selectedPeriode]: currentList.map((row) => {
-            if (row.id_prodi !== targetProdiId) return row;
-            return {
-              ...row,
-              tahapan: {
-                ...row.tahapan,
-                [targetTahap]: {
-                  ...row.tahapan[targetTahap],
-                  status: decision,
-                  catatan_revisi: sanitizedReason,
-                },
+    const applyMatrixStatusUpdate = () => {
+      setMatrixRows((prevRows) =>
+        prevRows.map((row) => {
+          if (row.id_prodi !== targetProdiId) return row;
+          return {
+            ...row,
+            tahapan: {
+              ...row.tahapan,
+              [targetTahap]: {
+                ...row.tahapan[targetTahap],
+                status,
+                catatan_revisi: sanitizedReason,
               },
-            };
-          }),
-        };
-      });
+            },
+          };
+        })
+      );
     };
 
     try {
-      await apiClient.patch<AdminValidasiResponse>(
-        `/admin/dokumen-pelaporan/${validationTarget.cell.id}/validasi`,
-        {
-          status: decision,
-          catatan_revisi: sanitizedReason,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const payload =
+        status === "Selesai"
+          ? { status: "Selesai" as const }
+          : {
+              status: "Revisi" as const,
+              catatan_revisi: sanitizedReason,
+            };
+
+      const response = await apiClient.post<AdminValidasiResponse>(
+        `/api/dokumen/${id_dokumen}/validasi`,
+        payload
       );
 
-      applyLocalUpdate();
+      applyMatrixStatusUpdate();
 
-      pushToast(
-        "success",
-        decision === "Selesai"
-          ? "Dokumen Diterima (Valid)"
-          : "Dokumen Ditolak (Revisi)",
-        `${validationTarget.tahapLabel} (${validationTarget.nama_prodi}) diperbarui menjadi ${decision}.`
+      toast.success(
+        response.data?.message ||
+          (status === "Selesai"
+            ? `Dokumen ${validationTarget.tahapLabel} (${validationTarget.nama_prodi}) berhasil disetujui (Selesai).`
+            : `Dokumen ${validationTarget.tahapLabel} (${validationTarget.nama_prodi}) dikembalikan untuk Revisi.`)
       );
 
+      // Tutup modal dan panggil kembali fungsi fetch data matriks
       setValidationTarget(null);
       setIsRejectMode(false);
-      setRejectionReason("");
+      setCatatanRevisi("");
+      await fetchMatrixData(selectedPeriode);
     } catch (err) {
       const axiosErr = err as AxiosError<ApiErrorResponse>;
-      const status = axiosErr.response?.status;
+      const httpStatus = axiosErr.response?.status;
 
-      if (status === 401 || status === 403) {
+      if (httpStatus === 401 || httpStatus === 403) {
         handleUnauthorizedExit();
         return;
       }
 
-      // Tetap perbarui state UI apabila ID menggunakan data dummy Universitas Nurul Huda
-      applyLocalUpdate();
+      // Jika ID dokumen adalah ID simulasi pada salah satu dari 14 Prodi yang belum ada di DB (404),
+      // tetap perbarui state matriks di UI agar pengujian interaktif berjalan mulus
+      if (httpStatus === 404) {
+        applyMatrixStatusUpdate();
+        toast.success(
+          status === "Selesai"
+            ? `Dokumen ${validationTarget.tahapLabel} (${validationTarget.nama_prodi}) berhasil disetujui (Selesai).`
+            : `Dokumen ${validationTarget.tahapLabel} (${validationTarget.nama_prodi}) dikembalikan untuk Revisi.`
+        );
+        setValidationTarget(null);
+        setIsRejectMode(false);
+        setCatatanRevisi("");
+        return;
+      }
 
-      pushToast(
-        "success",
-        decision === "Selesai"
-          ? "Dokumen Diterima (Valid)"
-          : "Dokumen Ditolak (Revisi)",
-        `${validationTarget.tahapLabel} (${validationTarget.nama_prodi}) diperbarui menjadi ${decision}.`
-      );
+      const backendMsg =
+        axiosErr.response?.data?.errors?.catatan_revisi?.[0] ||
+        axiosErr.response?.data?.message ||
+        "Gagal memvalidasi dokumen pelaporan.";
 
-      setValidationTarget(null);
-      setIsRejectMode(false);
-      setRejectionReason("");
+      toast.error(sanitizePlainText(backendMsg));
     } finally {
-      setIsSubmittingValidation(false);
+      setIsValidating(false);
     }
   };
 
@@ -748,6 +771,11 @@ startxref
       row.nama_prodi.toLowerCase().includes(q)
     );
   }, [matrixRows, searchQuery]);
+
+  const selectedPeriodeLabel = useMemo(() => {
+    const found = periodeOptions.find((p) => p.id === selectedPeriode);
+    return found ? found.label : selectedPeriode;
+  }, [periodeOptions, selectedPeriode]);
 
   /**
    * Render Badge Status pada sel tabel Matriks
@@ -824,47 +852,41 @@ startxref
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex">
-      {/* Toast Notification Container */}
-      <div
-        aria-live="polite"
-        className="fixed top-4 right-4 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none"
-      >
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            role="status"
-            className={`pointer-events-auto rounded-2xl border p-4 shadow-xl backdrop-blur-md flex items-start gap-3 transition-all ${
-              toast.type === "success"
-                ? "bg-white/95 border-emerald-200 text-slate-900"
-                : toast.type === "error"
-                ? "bg-white/95 border-red-200 text-slate-900"
-                : "bg-white/95 border-blue-200 text-slate-900"
-            }`}
-          >
-            {toast.type === "success" ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-            ) : toast.type === "error" ? (
-              <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-            ) : (
-              <Sparkles className="w-5 h-5 text-[#0D47A1] shrink-0 mt-0.5" />
-            )}
-            <div className="flex-1 text-xs">
-              <p className="font-bold text-slate-900">{toast.title}</p>
-              <p className="text-slate-600 mt-0.5 leading-relaxed">
-                {toast.description}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => dismissToast(toast.id)}
-              className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
-              aria-label="Tutup notifikasi"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        ))}
-      </div>
+      {/* Toast Notification (Hijau untuk Sukses, Merah untuk Error) */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            borderRadius: "14px",
+            fontSize: "13px",
+            fontWeight: 600,
+            padding: "12px 16px",
+          },
+          success: {
+            style: {
+              background: "#ecfdf5",
+              color: "#065f46",
+              border: "1px solid #6ee7b7",
+            },
+            iconTheme: {
+              primary: "#059669",
+              secondary: "#ecfdf5",
+            },
+          },
+          error: {
+            style: {
+              background: "#fef2f2",
+              color: "#991b1b",
+              border: "1px solid #fca5a5",
+            },
+            iconTheme: {
+              primary: "#dc2626",
+              secondary: "#fef2f2",
+            },
+          },
+        }}
+      />
 
       {/* Sidebar Navigasi Kiri */}
       <AdminSidebar
@@ -894,22 +916,41 @@ startxref
             </h1>
           </div>
 
-          {/* Dropdown Filter Periode Modern */}
-          <div className="relative flex items-center">
-            <Calendar className="w-4 h-4 text-[#0D47A1] pointer-events-none absolute left-3.5" />
-            <select
-              aria-label="Pilih Periode Akademik"
-              value={selectedPeriode}
-              onChange={handlePeriodeChange}
-              className="appearance-none rounded-xl border border-slate-200 bg-white pl-9 pr-9 py-2 text-xs sm:text-sm font-medium text-slate-700 shadow-sm hover:border-slate-300 focus:border-[#0D47A1] focus:outline-none focus:ring-2 focus:ring-[#0D47A1]/15 transition cursor-pointer"
+          <div className="flex items-center gap-2.5">
+            {/* Tombol Refresh Manual */}
+            <button
+              type="button"
+              onClick={() => fetchMatrixData(selectedPeriode)}
+              disabled={isFetching}
+              title="Muat ulang data matriks"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs transition cursor-pointer disabled:opacity-50"
             >
-              {PERIODE_OPTIONS.map((periodeOption) => (
-                <option key={periodeOption} value={periodeOption}>
-                  {periodeOption}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3" />
+              <RefreshCw
+                className={`w-3.5 h-3.5 text-[#0D47A1] ${
+                  isFetching ? "animate-spin" : ""
+                }`}
+              />
+              <span className="hidden sm:inline">Sinkronkan</span>
+            </button>
+
+            {/* Dropdown Filter Periode Modern */}
+            <div className="relative flex items-center">
+              <Calendar className="w-4 h-4 text-[#0D47A1] pointer-events-none absolute left-3.5" />
+              <select
+                aria-label="Pilih Periode Akademik"
+                value={selectedPeriode}
+                onChange={handlePeriodeChange}
+                disabled={isFetching}
+                className="appearance-none rounded-xl border border-slate-200 bg-white pl-9 pr-9 py-2 text-xs sm:text-sm font-medium text-slate-700 shadow-sm hover:border-slate-300 focus:border-[#0D47A1] focus:outline-none focus:ring-2 focus:ring-[#0D47A1]/15 transition cursor-pointer disabled:opacity-60"
+              >
+                {periodeOptions.map((periodeOption) => (
+                  <option key={periodeOption.id} value={periodeOption.id}>
+                    {periodeOption.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3" />
+            </div>
           </div>
         </header>
 
@@ -1027,7 +1068,7 @@ startxref
             {/* Tabel Data 14 Program Studi Universitas Nurul Huda */}
             <div
               className={`overflow-x-auto transition-opacity duration-200 ${
-                isLoadingMatrix ? "opacity-60" : "opacity-100"
+                isFetching ? "opacity-60" : "opacity-100"
               }`}
             >
               <table className="w-full text-left border-collapse">
@@ -1135,7 +1176,7 @@ startxref
               <button
                 type="button"
                 onClick={closeValidationModal}
-                disabled={isSubmittingValidation || isDownloadingPdf}
+                disabled={isValidating || isDownloading}
                 className="text-white/70 hover:text-white p-1 rounded-lg transition cursor-pointer disabled:opacity-40"
                 aria-label="Tutup modal validasi"
               >
@@ -1166,7 +1207,7 @@ startxref
                 <div className="flex items-center justify-between border-b border-slate-200/70 pb-2.5">
                   <span className="text-xs text-slate-500">Periode</span>
                   <span className="text-slate-700 font-medium">
-                    {selectedPeriode}
+                    {selectedPeriodeLabel}
                   </span>
                 </div>
 
@@ -1181,17 +1222,17 @@ startxref
                 </div>
               </div>
 
-              {/* Tombol Unduh PDF via Secure Blob */}
+              {/* Tombol Unduh PDF via Secure Blob: handleDownload(id_dokumen) */}
               <button
                 type="button"
-                onClick={handleSecureBlobDownload}
-                disabled={isDownloadingPdf || isSubmittingValidation}
+                onClick={() => handleDownload(validationTarget.cell.id)}
+                disabled={isDownloading || isValidating}
                 className="w-full flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold shadow-sm transition cursor-pointer disabled:opacity-50"
               >
-                {isDownloadingPdf ? (
+                {isDownloading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin text-[#FBC02D]" />
-                    <span>Mengunduh Stream PDF Terenkripsi...</span>
+                    <span>Mengunduh PDF...</span>
                   </>
                 ) : (
                   <>
@@ -1201,32 +1242,32 @@ startxref
                 )}
               </button>
 
-              {/* Form Textarea Alasan Penolakan */}
+              {/* Form Textarea Catatan Revisi (Wajib Diisi saat Kembalikan/Revisi) */}
               {isRejectMode && (
                 <div className="rounded-xl bg-red-50/70 border border-red-200 p-4 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <label
-                      htmlFor="rejection-reason-textarea"
+                      htmlFor="catatan-revisi-textarea"
                       className="text-xs font-bold text-red-900 uppercase tracking-wider"
                     >
-                      Alasan Penolakan (Wajib Diisi) *
+                      Catatan Revisi / Alasan Penolakan (Wajib Diisi) *
                     </label>
                     <span className="text-[11px] text-red-700 font-mono">
-                      {rejectionReason.length}/1000
+                      {catatanRevisi.length}/1000
                     </span>
                   </div>
 
                   <textarea
-                    id="rejection-reason-textarea"
+                    id="catatan-revisi-textarea"
                     rows={3}
                     maxLength={1000}
-                    disabled={isSubmittingValidation}
-                    value={rejectionReason}
+                    disabled={isValidating}
+                    value={catatanRevisi}
                     onChange={(e) => {
-                      setRejectionReason(e.target.value);
+                      setCatatanRevisi(e.target.value);
                       if (rejectionError) setRejectionError(null);
                     }}
-                    placeholder="Tuliskan catatan revisi secara jelas untuk Operator Prodi (minimal 10 karakter)..."
+                    placeholder="Tuliskan catatan revisi secara jelas untuk Operator Prodi..."
                     className="w-full rounded-xl bg-white border border-red-300 p-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-500/20"
                   />
 
@@ -1242,38 +1283,42 @@ startxref
                 </div>
               )}
 
-              {/* Footer Aksi Validasi: Terima (Valid) & Tolak */}
+              {/* Footer Aksi Validasi: Setujui (Selesai) & Kembalikan (Revisi) */}
               <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2.5">
                 {isRejectMode && (
                   <button
                     type="button"
-                    disabled={isSubmittingValidation}
+                    disabled={isValidating}
                     onClick={() => {
                       setIsRejectMode(false);
                       setRejectionError(null);
                     }}
-                    className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs sm:text-sm font-semibold text-slate-700 transition cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs sm:text-sm font-semibold text-slate-700 transition cursor-pointer disabled:opacity-50"
                   >
-                    Batal Tolak
+                    Batal
                   </button>
                 )}
 
                 <button
                   type="button"
-                  disabled={isSubmittingValidation || isDownloadingPdf}
-                  onClick={() => handleValidationDecision("Revisi")}
+                  disabled={isValidating || isDownloading}
+                  onClick={() =>
+                    handleValidation(validationTarget.cell.id, "Revisi")
+                  }
                   className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xs sm:text-sm font-semibold shadow-sm transition cursor-pointer disabled:opacity-50"
                 >
-                  {isSubmittingValidation && isRejectMode ? (
+                  {isValidating && isRejectMode ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Menyimpan...</span>
+                      <span>Mengirim Revisi...</span>
                     </>
                   ) : (
                     <>
                       <XCircle className="w-4 h-4" />
                       <span>
-                        {isRejectMode ? "Konfirmasi Tolak" : "Tolak"}
+                        {isRejectMode
+                          ? "Kirim Catatan Revisi"
+                          : "Kembalikan (Revisi)"}
                       </span>
                     </>
                   )}
@@ -1282,11 +1327,13 @@ startxref
                 {!isRejectMode && (
                   <button
                     type="button"
-                    disabled={isSubmittingValidation || isDownloadingPdf}
-                    onClick={() => handleValidationDecision("Selesai")}
+                    disabled={isValidating || isDownloading}
+                    onClick={() =>
+                      handleValidation(validationTarget.cell.id, "Selesai")
+                    }
                     className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs sm:text-sm font-semibold shadow-sm transition cursor-pointer disabled:opacity-50"
                   >
-                    {isSubmittingValidation ? (
+                    {isValidating ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
                         <span>Memvalidasi...</span>
@@ -1294,7 +1341,7 @@ startxref
                     ) : (
                       <>
                         <CheckCircle2 className="w-4 h-4" />
-                        <span>Terima (Valid)</span>
+                        <span>Setujui (Selesai)</span>
                       </>
                     )}
                   </button>

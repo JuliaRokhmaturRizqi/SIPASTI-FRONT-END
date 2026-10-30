@@ -11,6 +11,16 @@ export interface DokumenApiRecord {
   status: DokumenStatus;
   catatan_revisi: string | null;
   tanggal_upload: string | null;
+  prodi?: {
+    id: number;
+    nama_prodi: string;
+  };
+  periode_akademik?: {
+    id: number;
+    nama_periode: string;
+    status_pelaporan: "Buka" | "Tutup";
+    is_default: boolean;
+  };
 }
 
 export interface TaskCardItem {

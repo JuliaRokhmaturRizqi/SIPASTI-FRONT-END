@@ -36,7 +36,9 @@ export default function AdminSidebar({
 
   const isDashboardActive = pathname === "/admin/dashboard";
   const isPeriodeActive = pathname.startsWith("/admin/periode");
-  const isProdiActive = pathname.startsWith("/admin/prodi");
+  const isProdiActive =
+    pathname.startsWith("/admin/data-prodi") ||
+    pathname.startsWith("/admin/prodi");
 
   return (
     <>
@@ -130,7 +132,7 @@ export default function AdminSidebar({
             </Link>
 
             <Link
-              href="/admin/prodi"
+              href="/admin/data-prodi"
               onClick={onCloseMobile}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition ${
                 isProdiActive
