@@ -12,6 +12,7 @@ import {
   ChevronDown,
   Clock,
   Download,
+  Package,
   FileCheck2,
   FileSearch,
   GraduationCap,
@@ -328,7 +329,8 @@ export default function AdminDashboardPage() {
   const [isFetching, setIsFetching] = useState<boolean>(false);
   const [isValidating, setIsValidating] = useState<boolean>(false);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
-
+  const [isDownloadingZip, setIsDownloadingZip] = useState<boolean>(false);
+  
   // State Modal Validasi (Pop-up)
   const [validationTarget, setValidationTarget] =
     useState<ActiveValidationTarget | null>(null);
@@ -605,6 +607,50 @@ startxref
       }
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  /**
+   * Fungsi Unduh Semua Lampiran (ZIP)
+   */
+  const handleDownloadZip = async (id_dokumen: number) => {
+    if (!validationTarget || isDownloadingZip) return;
+
+    setIsDownloadingZip(true);
+    const safeProdiSlug = validationTarget.nama_prodi
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+    const zipFilename = `Lampiran-Tahap-4-${safeProdiSlug}.zip`;
+
+    try {
+      const response = await apiClient.get<Blob>(
+        `/api/dokumen/${id_dokumen}/lampiran/zip`,
+        { responseType: "blob" }
+      );
+
+      const zipBlob = new Blob([response.data], { type: "application/zip" });
+      const blobUrl = window.URL.createObjectURL(zipBlob);
+
+      const anchor = document.createElement("a");
+      anchor.style.display = "none";
+      anchor.href = blobUrl;
+      anchor.download = zipFilename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+
+      window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+      toast.success(`Arsip ${zipFilename} berhasil diunduh.`);
+    } catch (err) {
+      const axiosErr = err as AxiosError;
+      if (axiosErr.response?.status === 404) {
+        toast.error("Tidak ada lampiran yang ditemukan untuk dokumen ini.");
+      } else {
+        toast.error("Gagal mengunduh file ZIP dari server.");
+      }
+    } finally {
+      setIsDownloadingZip(false);
     }
   };
 
