@@ -18,6 +18,7 @@ import {
   Info,
   Loader2,
   Menu,
+  Paperclip,
   RefreshCw,
   ShieldCheck,
   Upload,
@@ -156,6 +157,7 @@ function mapApiDokumenToTaskCards(
         filePath: null,
         catatanRevisi: null,
         tanggalUpload: null,
+        lampiran: [],
       };
     }
 
@@ -168,6 +170,7 @@ function mapApiDokumenToTaskCards(
       filePath: matched.file_path || null,
       catatanRevisi: matched.catatan_revisi || null,
       tanggalUpload: matched.tanggal_upload || null,
+      lampiran: matched.lampiran || [],
     };
   });
 }
@@ -646,7 +649,7 @@ export default function ProdiTahapanSuratPernyataanPage() {
                     </div>
 
                     {/* Tombol Aksi */}
-                    <div className="shrink-0">
+                    <div className="shrink-0 flex flex-wrap items-center gap-2">
                       {isNeedUpload ? (
                         <button
                           type="button"
@@ -657,14 +660,26 @@ export default function ProdiTahapanSuratPernyataanPage() {
                           <span>Upload PDF</span>
                         </button>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => setActivePreviewTask(task)}
-                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-blue-50/50 text-[#0D47A1] border border-[#0D47A1]/35 hover:border-[#0D47A1] text-xs sm:text-sm font-semibold transition cursor-pointer"
-                        >
-                          <Eye className="w-4 h-4" />
-                          <span>Lihat Dokumen</span>
-                        </button>
+                        <>
+                          {task.tahap === 4 && task.status === "Review" && (
+                            <button
+                              type="button"
+                              onClick={() => setActiveUploadTask(task)}
+                              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#0D47A1] border border-blue-200 text-xs sm:text-sm font-semibold transition cursor-pointer"
+                            >
+                              <Paperclip className="w-4 h-4" />
+                              <span>Kelola Lampiran</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setActivePreviewTask(task)}
+                            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-blue-50/50 text-[#0D47A1] border border-[#0D47A1]/35 hover:border-[#0D47A1] text-xs sm:text-sm font-semibold transition cursor-pointer"
+                          >
+                            <Eye className="w-4 h-4" />
+                            <span>Lihat Dokumen</span>
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -749,6 +764,7 @@ export default function ProdiTahapanSuratPernyataanPage() {
         periodeLabel={currentPeriodeObj?.nama_periode || ""}
         onClose={() => setActiveUploadTask(null)}
         onUploadSuccess={handleUploadSuccess}
+        onLampiranDeleted={() => fetchDataTahapan(selectedPeriode, false)}
       />
 
       {/* Modal Lihat Dokumen */}

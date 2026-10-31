@@ -2,6 +2,14 @@ export type DokumenStatus = "Belum Unggah" | "Review" | "Revisi" | "Selesai";
 
 export type TahapDokumenNumber = 1 | 2 | 3 | 4;
 
+export interface LampiranDokumenRecord {
+  id: number;
+  dokumen_pelaporan_id: number;
+  jenis_lampiran: string;
+  nama_file_asli: string;
+  created_at?: string;
+}
+
 export interface DokumenApiRecord {
   id?: number;
   id_prodi?: number;
@@ -11,6 +19,8 @@ export interface DokumenApiRecord {
   status: DokumenStatus;
   catatan_revisi: string | null;
   tanggal_upload: string | null;
+  lampiran_count?: number;
+  lampiran?: LampiranDokumenRecord[];
   prodi?: {
     id: number;
     nama_prodi: string;
@@ -32,6 +42,7 @@ export interface TaskCardItem {
   filePath: string | null;
   catatanRevisi: string | null;
   tanggalUpload: string | null;
+  lampiran?: LampiranDokumenRecord[];
 }
 
 /**

@@ -1,7 +1,10 @@
 /**
- * Konstanta batas ukuran maksimal file upload: 2 MB (2,097,152 bytes) untuk Operator Prodi.
+ * Konstanta batas ukuran maksimal file upload:
+ * - 2 MB (2,097,152 bytes) untuk Surat Pernyataan Utama.
+ * - 5 MB (5,242,880 bytes) untuk masing-masing file Lampiran Pendukung (Ijazah/Transkrip).
  */
 export const MAX_PDF_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
+export const MAX_LAMPIRAN_PDF_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
 /**
  * Sanitasi teks secara ketat untuk mencegah Cross-Site Scripting (XSS) dan Injection.

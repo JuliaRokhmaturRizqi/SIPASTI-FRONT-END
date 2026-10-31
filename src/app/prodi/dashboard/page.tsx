@@ -15,6 +15,7 @@ import {
   FileText,
   Loader2,
   Menu,
+  Paperclip,
   RefreshCw,
   ShieldCheck,
   Upload,
@@ -142,6 +143,7 @@ function mapApiDokumenToTaskCards(
         filePath: null,
         catatanRevisi: null,
         tanggalUpload: null,
+        lampiran: [],
       };
     }
 
@@ -154,6 +156,7 @@ function mapApiDokumenToTaskCards(
       filePath: matched.file_path || null,
       catatanRevisi: matched.catatan_revisi || null,
       tanggalUpload: matched.tanggal_upload || null,
+      lampiran: matched.lampiran || [],
     };
   });
 }
@@ -709,6 +712,14 @@ export default function ProdiDashboardPage() {
                               <FileText className="w-3.5 h-3.5 text-[#0D47A1]" />
                               {safeFileName}
                             </span>
+                            {task.tahap === 4 &&
+                              task.lampiran &&
+                              task.lampiran.length > 0 && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-[#0D47A1] border border-blue-200 font-semibold">
+                                  <Paperclip className="w-3 h-3" />
+                                  {task.lampiran.length} Lampiran Ijazah/Transkrip
+                                </span>
+                              )}
                             {task.tanggalUpload && (
                               <span className="inline-flex items-center gap-1 text-slate-400">
                                 <Clock className="w-3 h-3" />
@@ -727,7 +738,7 @@ export default function ProdiDashboardPage() {
                     </div>
 
                     {/* Tombol Aksi: 'Upload PDF' (Primary) atau 'Lihat Dokumen' (Outline) */}
-                    <div className="shrink-0 sm:self-center">
+                    <div className="shrink-0 sm:self-center flex flex-wrap items-center gap-2">
                       {isNeedUpload ? (
                         <button
                           type="button"
@@ -738,14 +749,26 @@ export default function ProdiDashboardPage() {
                           <span>Upload PDF</span>
                         </button>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => setActivePreviewTask(task)}
-                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-blue-50/50 text-[#0D47A1] border border-[#0D47A1]/35 hover:border-[#0D47A1] text-xs sm:text-sm font-semibold transition cursor-pointer"
-                        >
-                          <Eye className="w-4 h-4" />
-                          <span>Lihat Dokumen</span>
-                        </button>
+                        <>
+                          {task.tahap === 4 && task.status === "Review" && (
+                            <button
+                              type="button"
+                              onClick={() => setActiveUploadTask(task)}
+                              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#0D47A1] border border-blue-200 text-xs sm:text-sm font-semibold transition cursor-pointer"
+                            >
+                              <Paperclip className="w-4 h-4" />
+                              <span>Kelola Lampiran</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setActivePreviewTask(task)}
+                            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-blue-50/50 text-[#0D47A1] border border-[#0D47A1]/35 hover:border-[#0D47A1] text-xs sm:text-sm font-semibold transition cursor-pointer"
+                          >
+                            <Eye className="w-4 h-4" />
+                            <span>Lihat Dokumen</span>
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -783,6 +806,7 @@ export default function ProdiDashboardPage() {
         periodeLabel={currentPeriodeObj?.nama_periode || ""}
         onClose={() => setActiveUploadTask(null)}
         onUploadSuccess={handleUploadSuccess}
+        onLampiranDeleted={() => fetchDataDashboard(selectedPeriode, false)}
       />
 
       {/* Modal Lihat Dokumen (Untuk Status 'Review' atau 'Selesai') */}
