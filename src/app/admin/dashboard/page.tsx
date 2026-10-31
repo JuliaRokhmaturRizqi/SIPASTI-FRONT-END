@@ -1268,25 +1268,50 @@ startxref
                 </div>
               </div>
 
-              {/* Tombol Unduh PDF via Secure Blob: handleDownload(id_dokumen) */}
-              <button
-                type="button"
-                onClick={() => handleDownload(validationTarget.cell.id)}
-                disabled={isDownloading || isValidating}
-                className="w-full flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold shadow-sm transition cursor-pointer disabled:opacity-50"
-              >
-                {isDownloading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin text-[#FBC02D]" />
-                    <span>Mengunduh PDF...</span>
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-4 h-4 text-[#FBC02D]" />
-                    <span>Unduh PDF</span>
-                  </>
+              {/* Grup Tombol Unduh */}
+              <div className="flex flex-col gap-2">
+                {/* Tombol Unduh PDF Utama */}
+                <button
+                  type="button"
+                  onClick={() => handleDownload(validationTarget.cell.id)}
+                  disabled={isDownloading || isDownloadingZip || isValidating}
+                  className="w-full flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold shadow-sm transition cursor-pointer disabled:opacity-50"
+                >
+                  {isDownloading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-[#FBC02D]" />
+                      <span>Mengunduh PDF...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 text-[#FBC02D]" />
+                      <span>Unduh PDF Utama</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Tombol Unduh ZIP Lampiran (Khusus Tahap 4) */}
+                {validationTarget.cell.tahap_dokumen === 4 && (
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadZip(validationTarget.cell.id)}
+                    disabled={isDownloadingZip || isDownloading || isValidating}
+                    className="w-full flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-[#0D47A1] text-xs sm:text-sm font-semibold shadow-sm transition cursor-pointer disabled:opacity-50"
+                  >
+                    {isDownloadingZip ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Memproses ZIP...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Package className="w-4 h-4" />
+                        <span>Unduh Semua Lampiran (ZIP)</span>
+                      </>
+                    )}
+                  </button>
                 )}
-              </button>
+              </div>
 
               {/* Form Textarea Catatan Revisi (Wajib Diisi saat Kembalikan/Revisi) */}
               {isRejectMode && (
