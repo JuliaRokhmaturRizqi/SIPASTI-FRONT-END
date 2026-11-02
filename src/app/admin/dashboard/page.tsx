@@ -145,92 +145,13 @@ function createProdiRow(
 /**
  * Dataset Awal 14 Program Studi Universitas Nurul Huda
  */
-const INITIAL_PRODI_ROWS: AdminProdiRow[] = [
-  createProdiRow(1, PRODI_UNIVERSITAS_NURUL_HUDA[0], [
-    "Selesai",
-    "Selesai",
-    "Review",
-    "Belum Unggah",
-  ]),
+const INITIAL_PRODI_ROWS: AdminProdiRow[] = PRODI_UNIVERSITAS_NURUL_HUDA.map((namaProdi, index) => 
   createProdiRow(
-    2,
-    PRODI_UNIVERSITAS_NURUL_HUDA[1],
-    ["Selesai", "Revisi", "Belum Unggah", "Belum Unggah"],
-    "Jadwal mengajar dosen tetap PGMI pada semester 4 terdapat bentrok jam perkuliahan."
-  ),
-  createProdiRow(3, PRODI_UNIVERSITAS_NURUL_HUDA[2], [
-    "Selesai",
-    "Selesai",
-    "Selesai",
-    "Review",
-  ]),
-  createProdiRow(4, PRODI_UNIVERSITAS_NURUL_HUDA[3], [
-    "Selesai",
-    "Review",
-    "Belum Unggah",
-    "Belum Unggah",
-  ]),
-  createProdiRow(
-    5,
-    PRODI_UNIVERSITAS_NURUL_HUDA[4],
-    ["Selesai", "Selesai", "Revisi", "Belum Unggah"],
-    "Rekapitulasi nilai mata kuliah Speaking & Listening belum melampirkan berita acara ujian akhir."
-  ),
-  createProdiRow(6, PRODI_UNIVERSITAS_NURUL_HUDA[5], [
-    "Review",
-    "Belum Unggah",
-    "Belum Unggah",
-    "Belum Unggah",
-  ]),
-  createProdiRow(7, PRODI_UNIVERSITAS_NURUL_HUDA[6], [
-    "Selesai",
-    "Selesai",
-    "Selesai",
-    "Selesai",
-  ]),
-  createProdiRow(8, PRODI_UNIVERSITAS_NURUL_HUDA[7], [
-    "Selesai",
-    "Selesai",
-    "Review",
-    "Review",
-  ]),
-  createProdiRow(
-    9,
-    PRODI_UNIVERSITAS_NURUL_HUDA[8],
-    ["Revisi", "Belum Unggah", "Belum Unggah", "Belum Unggah"],
-    "Sebaran SKS mata kuliah praktik lapangan belum sesuai struktur kurikulum terbaru."
-  ),
-  createProdiRow(10, PRODI_UNIVERSITAS_NURUL_HUDA[9], [
-    "Selesai",
-    "Selesai",
-    "Review",
-    "Belum Unggah",
-  ]),
-  createProdiRow(11, PRODI_UNIVERSITAS_NURUL_HUDA[10], [
-    "Selesai",
-    "Review",
-    "Belum Unggah",
-    "Belum Unggah",
-  ]),
-  createProdiRow(
-    12,
-    PRODI_UNIVERSITAS_NURUL_HUDA[11],
-    ["Selesai", "Selesai", "Revisi", "Belum Unggah"],
-    "Daftar nilai praktikum agronomi belum ditandatangani oleh koordinator laboratorium."
-  ),
-  createProdiRow(13, PRODI_UNIVERSITAS_NURUL_HUDA[12], [
-    "Belum Unggah",
-    "Belum Unggah",
-    "Belum Unggah",
-    "Belum Unggah",
-  ]),
-  createProdiRow(14, PRODI_UNIVERSITAS_NURUL_HUDA[13], [
-    "Selesai",
-    "Selesai",
-    "Selesai",
-    "Review",
-  ]),
-];
+    index + 1, 
+    namaProdi, 
+    ["Belum Unggah", "Belum Unggah", "Belum Unggah", "Belum Unggah"]
+  )
+);
 
 /**
  * Helper pemetaan respons API GET /api/dokumen?id_periode={selectedPeriode}

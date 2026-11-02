@@ -424,7 +424,7 @@ export default function ManajemenPeriodePage() {
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0D47A1] hover:bg-[#1565C0] active:bg-blue-900 text-white text-xs sm:text-sm font-semibold shadow-sm shadow-blue-900/15 transition cursor-pointer"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>+ Tambah Periode</span>
+            <span>Tambah Periode</span>
           </button>
         </header>
 

@@ -132,6 +132,25 @@ export default function AdminSidebar({
             </Link>
 
             <Link
+              href="/admin/master-data"
+              onClick={onCloseMobile}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition ${
+                pathname.startsWith("/admin/master-data")
+                  ? "bg-[#0D47A1] text-white shadow-md shadow-blue-950/50 border border-white/15"
+                  : "text-slate-300 hover:bg-white/5 hover:text-white"
+              }`}
+            >
+              <Building2
+                className={`w-4 h-4 ${
+                  pathname.startsWith("/admin/master-data") ? "text-[#FBC02D]" : "text-slate-400"
+                }`}
+              />
+              <span>Master Data Kampus</span>
+            </Link>
+            {/* ---> AKHIR TAMBAHAN BARU <--- */}
+
+            {/* Menu: Data Prodi (Akun) */}
+            <Link
               href="/admin/data-prodi"
               onClick={onCloseMobile}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition ${
@@ -147,6 +166,7 @@ export default function AdminSidebar({
               />
               <span>Data Prodi</span>
             </Link>
+            
           </nav>
         </div>
 
