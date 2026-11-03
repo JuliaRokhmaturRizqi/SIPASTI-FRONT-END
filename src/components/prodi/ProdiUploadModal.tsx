@@ -18,6 +18,7 @@ import {
   XCircle,
 } from "lucide-react";
 import apiClient from "@/lib/axios";
+import { getAuthSession } from "@/lib/auth";
 import {
   formatFileSize,
   MAX_LAMPIRAN_PDF_SIZE_BYTES,
@@ -287,7 +288,7 @@ export default function ProdiUploadModal({
 
     setInlineError(null);
 
-    const mainFile = fileInputRef.current?.files?.[0] || selectedFile;
+    const mainFile = selectedFile || fileInputRef.current?.files?.[0] || null;
     const pendingLampiran = lampiranFiles.filter(
       (item) => item.status !== "success"
     );
@@ -333,9 +334,15 @@ export default function ProdiUploadModal({
       // LANGKAH A: Upload file Surat Pernyataan ke POST /api/dokumen/upload
       if (mainFile) {
         const formData = new FormData();
-        formData.append("dokumen", mainFile);
+        formData.append("file", mainFile);
         formData.append("id_periode", String(selectedPeriode));
         formData.append("tahap_dokumen", String(tahapAktif));
+        formData.append("tahap", String(tahapAktif));
+
+        const sessionUser = getAuthSession().user;
+        if (sessionUser?.id_prodi) {
+          formData.append("id_prodi", String(sessionUser.id_prodi));
+        }
 
         const response = await apiClient.post<DokumenUploadResponse>(
           "/api/dokumen/upload",
@@ -637,7 +644,7 @@ export default function ProdiUploadModal({
               <input
                 ref={fileInputRef}
                 id="prodi-pdf-input"
-                name="dokumen"
+                name="file"
                 type="file"
                 accept="application/pdf,.pdf"
                 disabled={isUploading}
