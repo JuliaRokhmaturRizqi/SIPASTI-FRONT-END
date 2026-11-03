@@ -85,33 +85,37 @@ const TAHAP_COLUMNS: Array<{
 ];
 
 /**
- * Daftar Resmi 14 Program Studi Universitas Nurul Huda
+ * Interface Akun Operator Prodi dari API GET /api/akun-prodi
  */
-const PRODI_UNIVERSITAS_NURUL_HUDA = [
-  "S1 Pendidikan Agama Islam",
-  "S1 Pendidikan Guru Madrasah Ibtidaiyah",
-  "S1 Pendidikan Bahasa Arab",
-  "S1 Pendidikan Bahasa dan Sastra Indonesia",
-  "S1 Pendidikan Bahasa Inggris",
-  "S1 Pendidikan Fisika",
-  "S1 Pendidikan Ekonomi",
-  "S1 Pendidikan Teknologi Informasi",
-  "S1 Pelatihan Olahraga",
-  "S1 Informatika",
-  "S1 Matematika",
-  "S1 Sains Pertanian",
-  "S1 Peternakan",
-  "S2 Pendidikan Agama Islam",
-] as const;
+interface AkunProdiMatrixRecord {
+  id: number;
+  username: string;
+  role: string;
+  id_prodi: number;
+  is_active?: boolean;
+  prodi?: {
+    id: number;
+    nama_prodi: string;
+  } | null;
+}
+
+interface AkunProdiMatrixResponse {
+  status: string;
+  data?: AkunProdiMatrixRecord[];
+}
 
 /**
- * Helper pembentuk baris data Prodi dengan variasi status yang logis
+ * Helper pembentuk kerangka baris data Prodi (default: seluruh tahapan "Belum Unggah")
  */
 function createProdiRow(
   idProdi: number,
   namaProdi: string,
-  statuses: [DokumenStatus, DokumenStatus, DokumenStatus, DokumenStatus],
-  revisiNote?: string
+  statuses: [DokumenStatus, DokumenStatus, DokumenStatus, DokumenStatus] = [
+    "Belum Unggah",
+    "Belum Unggah",
+    "Belum Unggah",
+    "Belum Unggah",
+  ]
 ): AdminProdiRow {
   const buildCell = (
     tahap: TahapDokumenNumber,
@@ -120,13 +124,8 @@ function createProdiRow(
     id: idProdi * 100 + tahap,
     tahap_dokumen: tahap,
     status,
-    catatan_revisi:
-      status === "Revisi"
-        ? revisiNote ||
-          "Dokumen belum dilengkapi lembar pengesahan Ketua Program Studi. Mohon diperbaiki dan diunggah kembali."
-        : null,
-    tanggal_upload:
-      status === "Belum Unggah" ? null : "2026-10-25T09:30:00Z",
+    catatan_revisi: null,
+    tanggal_upload: null,
     has_file: status !== "Belum Unggah",
   });
 
@@ -143,25 +142,31 @@ function createProdiRow(
 }
 
 /**
- * Dataset Awal 14 Program Studi Universitas Nurul Huda
+ * Membangun kerangka baris (rows) murni dari hasil fetch GET /api/akun-prodi,
+ * lalu menimpa statusnya dengan data riil dari GET /api/dokumen?id_periode={selectedPeriode}
  */
-const INITIAL_PRODI_ROWS: AdminProdiRow[] = PRODI_UNIVERSITAS_NURUL_HUDA.map((namaProdi, index) => 
-  createProdiRow(
-    index + 1, 
-    namaProdi, 
-    ["Belum Unggah", "Belum Unggah", "Belum Unggah", "Belum Unggah"]
-  )
-);
-
-/**
- * Helper pemetaan respons API GET /api/dokumen?id_periode={selectedPeriode}
- * ke 14 Program Studi Universitas Nurul Huda agar daftar 14 Prodi tetap terjaga.
- */
-function mergeApiDokumenIntoNurulHudaMatrix(
-  baseRows: AdminProdiRow[],
-  apiRecords: DokumenApiRecord[]
+function buildDynamicMatrixFromApi(
+  akunRecords: AkunProdiMatrixRecord[],
+  dokumenRecords: DokumenApiRecord[]
 ): AdminProdiRow[] {
-  if (!apiRecords || apiRecords.length === 0) {
+  if (!akunRecords || akunRecords.length === 0) {
+    return [];
+  }
+
+  // Bangun kerangka baris unik per id_prodi murni dari daftar akun operator Prodi di database
+  const uniqueProdiMap = new Map<number, AdminProdiRow>();
+  akunRecords.forEach((akun) => {
+    const idProdi = Number(akun.id_prodi || akun.prodi?.id);
+    if (!idProdi || uniqueProdiMap.has(idProdi)) return;
+
+    const namaProdi =
+      akun.prodi?.nama_prodi?.trim() || `Program Studi #${idProdi}`;
+    uniqueProdiMap.set(idProdi, createProdiRow(idProdi, namaProdi));
+  });
+
+  const baseRows = Array.from(uniqueProdiMap.values());
+
+  if (!dokumenRecords || dokumenRecords.length === 0) {
     return baseRows;
   }
 
@@ -173,27 +178,13 @@ function mergeApiDokumenIntoNurulHudaMatrix(
       4: { ...row.tahapan[4] },
     };
 
-    // Cari record API yang cocok dengan nama_prodi atau id_prodi (termasuk alias S1 Teknik Informatika -> S1 Informatika)
-    const matchingRecords = apiRecords.filter((rec) => {
+    const matchingRecords = dokumenRecords.filter((rec) => {
+      if (Number(rec.id_prodi) === row.id_prodi) {
+        return true;
+      }
       const apiProdiName = rec.prodi?.nama_prodi?.trim().toLowerCase() || "";
       const rowProdiName = row.nama_prodi.trim().toLowerCase();
-
-      if (apiProdiName && apiProdiName === rowProdiName) {
-        return true;
-      }
-      if (
-        rowProdiName === "s1 informatika" &&
-        apiProdiName === "s1 teknik informatika"
-      ) {
-        return true;
-      }
-      if (
-        rowProdiName === "s1 matematika" &&
-        apiProdiName === "s1 pendidikan matematika"
-      ) {
-        return true;
-      }
-      return Number(rec.id_prodi) === row.id_prodi;
+      return Boolean(apiProdiName && apiProdiName === rowProdiName);
     });
 
     matchingRecords.forEach((rec) => {
@@ -235,15 +226,14 @@ export default function AdminDashboardPage() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // State Dropdown Periode & Data Matriks 14 Prodi Universitas Nurul Huda
+  // State Dropdown Periode & Data Matriks Dinamis (Murni dari Database)
   const [periodeOptions, setPeriodeOptions] = useState<AdminPeriodeOption[]>(
     DEFAULT_PERIODE_OPTIONS
   );
   const [selectedPeriode, setSelectedPeriode] = useState<string>(
     DEFAULT_PERIODE_OPTIONS[0].id
   );
-  const [matrixRows, setMatrixRows] =
-    useState<AdminProdiRow[]>(INITIAL_PRODI_ROWS);
+  const [matrixRows, setMatrixRows] = useState<AdminProdiRow[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
   // State Loading sesuai spesifikasi (isFetching, isValidating, isDownloading)
@@ -266,9 +256,10 @@ export default function AdminDashboardPage() {
   }, [router]);
 
   /**
-   * Fungsi Fetch Data Matriks (Real-time):
-   * Memanggil GET /api/dokumen?id_periode={selectedPeriode} menggunakan Axios
-   * dan memetakan hasilnya ke 14 Program Studi Universitas Nurul Huda.
+   * Fungsi Fetch Data Matriks (Real-time & Murni Dinamis):
+   * 1. Mengambil kerangka baris dari GET /api/akun-prodi
+   * 2. Mengambil status dokumen dari GET /api/dokumen?id_periode={selectedPeriode}
+   * 3. Menimpa status dokumen ke kerangka baris tanpa data lokal/statis
    */
   const fetchMatrixData = useCallback(
     async (periodeIdParam?: string) => {
@@ -277,17 +268,17 @@ export default function AdminDashboardPage() {
 
       setIsFetching(true);
       try {
-        const response = await apiClient.get<DokumenListResponse>(
-          `/api/dokumen?id_periode=${encodeURIComponent(targetPeriode)}`
-        );
+        const [akunResponse, dokumenResponse] = await Promise.all([
+          apiClient.get<AkunProdiMatrixResponse>("/api/akun-prodi"),
+          apiClient.get<DokumenListResponse>(
+            `/api/dokumen?id_periode=${encodeURIComponent(targetPeriode)}`
+          ),
+        ]);
 
-        const apiRecords = response.data?.data || [];
-        setMatrixRows((prevRows) =>
-          mergeApiDokumenIntoNurulHudaMatrix(
-            prevRows.length > 0 ? prevRows : INITIAL_PRODI_ROWS,
-            apiRecords
-          )
-        );
+        const akunRecords = akunResponse.data?.data || [];
+        const dokumenRecords = dokumenResponse.data?.data || [];
+
+        setMatrixRows(buildDynamicMatrixFromApi(akunRecords, dokumenRecords));
       } catch (err) {
         const axiosErr = err as AxiosError<ApiErrorResponse>;
         const status = axiosErr.response?.status;
@@ -296,6 +287,11 @@ export default function AdminDashboardPage() {
           handleUnauthorizedExit();
           return;
         }
+
+        toast.error(
+          axiosErr.response?.data?.message ||
+            "Gagal memuat data matriks pemantauan dari server."
+        );
       } finally {
         setIsFetching(false);
       }
@@ -1064,11 +1060,17 @@ startxref
                         colSpan={5}
                         className="py-12 text-center text-slate-500 text-xs"
                       >
-                        Tidak ada Program Studi yang cocok dengan kata kunci{" "}
-                        <strong className="text-slate-700">
-                          &ldquo;{sanitizePlainText(searchQuery)}&rdquo;
-                        </strong>
-                        .
+                        {searchQuery.trim() ? (
+                          <>
+                            Tidak ada Program Studi yang cocok dengan kata kunci{" "}
+                            <strong className="text-slate-700">
+                              &ldquo;{sanitizePlainText(searchQuery)}&rdquo;
+                            </strong>
+                            .
+                          </>
+                        ) : (
+                          "Belum ada data akun operator Program Studi yang terdaftar di database."
+                        )}
                       </td>
                     </tr>
                   ) : (

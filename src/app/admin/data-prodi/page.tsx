@@ -33,104 +33,21 @@ import { ApiErrorResponse, AuthUser } from "@/types/auth";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 
 /**
- * Interface Master 14 Program Studi Universitas Nurul Huda (UNUHA)
+ * Interface Master Program Studi dari API GET /api/prodi
  */
-export interface UnuhaProdiMasterItem {
-  id_prodi: number;
+export interface Prodi {
+  id: number;
+  id_fakultas?: number | null;
   nama_prodi: string;
-  fakultas: string;
-  fakultas_singkatan: string;
+  periode_mulai_aktif?: string | null;
+  fakultas?: {
+    id: number;
+    singkatan: string;
+    nama_fakultas: string;
+  } | null;
+  users_count?: number;
+  dokumen_pelaporan_count?: number;
 }
-
-/**
- * Daftar Resmi 14 Program Studi Universitas Nurul Huda (UNUHA)
- */
-export const MASTER_14_PRODI_UNUHA: UnuhaProdiMasterItem[] = [
-  {
-    id_prodi: 1,
-    nama_prodi: "S1 Pendidikan Agama Islam",
-    fakultas: "Fakultas Agama Islam",
-    fakultas_singkatan: "FAI",
-  },
-  {
-    id_prodi: 2,
-    nama_prodi: "S1 Pendidikan Guru Madrasah Ibtidaiyah",
-    fakultas: "Fakultas Agama Islam",
-    fakultas_singkatan: "FAI",
-  },
-  {
-    id_prodi: 3,
-    nama_prodi: "S1 Pendidikan Bahasa Arab",
-    fakultas: "Fakultas Agama Islam",
-    fakultas_singkatan: "FAI",
-  },
-  {
-    id_prodi: 4,
-    nama_prodi: "S1 Pendidikan Bahasa dan Sastra Indonesia",
-    fakultas: "Fakultas Ilmu Pendidikan",
-    fakultas_singkatan: "FIP",
-  },
-  {
-    id_prodi: 5,
-    nama_prodi: "S1 Pendidikan Bahasa Inggris",
-    fakultas: "Fakultas Ilmu Pendidikan",
-    fakultas_singkatan: "FIP",
-  },
-  {
-    id_prodi: 6,
-    nama_prodi: "S1 Pendidikan Fisika",
-    fakultas: "Fakultas Ilmu Pendidikan",
-    fakultas_singkatan: "FIP",
-  },
-  {
-    id_prodi: 7,
-    nama_prodi: "S1 Pendidikan Ekonomi",
-    fakultas: "Fakultas Ilmu Pendidikan",
-    fakultas_singkatan: "FIP",
-  },
-  {
-    id_prodi: 8,
-    nama_prodi: "S1 Pendidikan Teknologi Informasi",
-    fakultas: "Fakultas Ilmu Pendidikan",
-    fakultas_singkatan: "FIP",
-  },
-  {
-    id_prodi: 9,
-    nama_prodi: "S1 Pelatihan Olahraga",
-    fakultas: "Fakultas Ilmu Pendidikan",
-    fakultas_singkatan: "FIP",
-  },
-  {
-    id_prodi: 10,
-    nama_prodi: "S1 Informatika",
-    fakultas: "Fakultas Sains dan Teknologi",
-    fakultas_singkatan: "FST",
-  },
-  {
-    id_prodi: 11,
-    nama_prodi: "S1 Matematika",
-    fakultas: "Fakultas Sains dan Teknologi",
-    fakultas_singkatan: "FST",
-  },
-  {
-    id_prodi: 12,
-    nama_prodi: "S1 Sains Pertanian",
-    fakultas: "Fakultas Sains dan Teknologi",
-    fakultas_singkatan: "FST",
-  },
-  {
-    id_prodi: 13,
-    nama_prodi: "S1 Peternakan",
-    fakultas: "Fakultas Sains dan Teknologi",
-    fakultas_singkatan: "FST",
-  },
-  {
-    id_prodi: 14,
-    nama_prodi: "S2 Pendidikan Agama Islam",
-    fakultas: "Program Pascasarjana",
-    fakultas_singkatan: "PPs",
-  },
-];
 
 /**
  * Interface Data Akun Operator Prodi dari API GET /api/akun-prodi
@@ -186,9 +103,12 @@ export function generateAutoUsernameFromProdi(namaProdi: string): string {
 }
 
 /**
- * Helper mencocokkan Fakultas untuk Nama Prodi UNUHA apabila relasi fakultas di DB bernilai null
+ * Helper mencocokkan Fakultas untuk akun Prodi berdasarkan relasi API atau state prodiOptions dinamis
  */
-function resolveFakultasLabel(item: AkunProdiItem): {
+function resolveFakultasLabel(
+  item: AkunProdiItem,
+  prodiOptions: Prodi[] = []
+): {
   nama_fakultas: string;
   singkatan: string;
 } {
@@ -200,17 +120,16 @@ function resolveFakultasLabel(item: AkunProdiItem): {
   }
 
   const prodiName = (item.prodi?.nama_prodi || "").trim().toLowerCase();
-  const matchedMaster = MASTER_14_PRODI_UNUHA.find(
-    (m) =>
-      m.nama_prodi.toLowerCase() === prodiName ||
-      (prodiName === "s1 teknik informatika" &&
-        m.nama_prodi.toLowerCase() === "s1 informatika")
+  const matchedDynamic = prodiOptions.find(
+    (p) =>
+      p.id === item.id_prodi ||
+      (prodiName && p.nama_prodi.trim().toLowerCase() === prodiName)
   );
 
-  if (matchedMaster) {
+  if (matchedDynamic?.fakultas?.nama_fakultas) {
     return {
-      nama_fakultas: matchedMaster.fakultas,
-      singkatan: matchedMaster.fakultas_singkatan,
+      nama_fakultas: matchedDynamic.fakultas.nama_fakultas,
+      singkatan: matchedDynamic.fakultas.singkatan || "UNUHA",
     };
   }
 
@@ -219,28 +138,6 @@ function resolveFakultasLabel(item: AkunProdiItem): {
     singkatan: "UNUHA",
   };
 }
-
-/**
- * Fallback Data Awal 14 Akun Operator Prodi UNUHA apabila tabel database masih kosong
- */
-const INITIAL_FALLBACK_AKUN_PRODI: AkunProdiItem[] = MASTER_14_PRODI_UNUHA.map(
-  (master, index) => ({
-    id: index + 1,
-    username: generateAutoUsernameFromProdi(master.nama_prodi),
-    role: "user",
-    id_prodi: master.id_prodi,
-    is_active: true,
-    prodi: {
-      id: master.id_prodi,
-      nama_prodi: master.nama_prodi,
-      fakultas: {
-        id: index + 1,
-        singkatan: master.fakultas_singkatan,
-        nama_fakultas: master.fakultas,
-      },
-    },
-  })
-);
 
 export default function ManajemenDataProdiPage() {
   const router = useRouter();
@@ -253,11 +150,9 @@ export default function ManajemenDataProdiPage() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] =
     useState<boolean>(false);
 
-  // State Utama Tabel Akun Prodi & Pencarian
+  // State Utama Tabel Akun Prodi & Pencarian (Dinamis dari API)
   const [akunProdi, setAkunProdi] = useState<AkunProdiItem[]>([]);
-  const [prodiOptions, setProdiOptions] = useState<UnuhaProdiMasterItem[]>(
-    MASTER_14_PRODI_UNUHA
-  );
+  const [prodiOptions, setProdiOptions] = useState<Prodi[]>([]);
   const [isLoadingTable, setIsLoadingTable] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>("");
 
@@ -267,12 +162,8 @@ export default function ManajemenDataProdiPage() {
   const [editingAccount, setEditingAccount] = useState<AkunProdiItem | null>(
     null
   );
-  const [selectedProdiName, setSelectedProdiName] = useState<string>(
-    MASTER_14_PRODI_UNUHA[0].nama_prodi
-  );
-  const [usernameInput, setUsernameInput] = useState<string>(
-    generateAutoUsernameFromProdi(MASTER_14_PRODI_UNUHA[0].nama_prodi)
-  );
+  const [selectedProdiName, setSelectedProdiName] = useState<string>("");
+  const [usernameInput, setUsernameInput] = useState<string>("");
   const [passwordInput, setPasswordInput] = useState<string>("");
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmittingForm, setIsSubmittingForm] = useState<boolean>(false);
@@ -300,12 +191,7 @@ export default function ManajemenDataProdiPage() {
         const response =
           await apiClient.get<AkunProdiListResponse>("/api/akun-prodi");
         const apiData = response.data?.data || [];
-
-        if (apiData.length > 0) {
-          setAkunProdi(apiData);
-        } else {
-          setAkunProdi(INITIAL_FALLBACK_AKUN_PRODI);
-        }
+        setAkunProdi(apiData);
       } catch (err) {
         const axiosErr = err as AxiosError<ApiErrorResponse>;
         const status = axiosErr.response?.status;
@@ -315,10 +201,6 @@ export default function ManajemenDataProdiPage() {
           return;
         }
 
-        // Gunakan fallback data 14 prodi UNUHA apabila gagal memuat dari server
-        setAkunProdi((prev) =>
-          prev.length > 0 ? prev : INITIAL_FALLBACK_AKUN_PRODI
-        );
         toast.error(
           axiosErr.response?.data?.message ||
             "Gagal memuat daftar akun operator Prodi dari server."
@@ -333,7 +215,7 @@ export default function ManajemenDataProdiPage() {
   );
 
   /**
-   * Verifikasi Otorisasi Admin & Inisialisasi Data GET /api/akun-prodi
+   * Verifikasi Otorisasi Admin & Inisialisasi Data GET /api/prodi serta GET /api/akun-prodi
    */
   useEffect(() => {
     let isMounted = true;
@@ -360,41 +242,27 @@ export default function ManajemenDataProdiPage() {
           return;
         }
 
-        // Ambil juga daftar Prodi dari /api/prodi untuk sinkronisasi ID database
+        // Ambil data Master Program Studi secara dinamis dari /api/prodi
         try {
           const prodiRes = await apiClient.get<{
             status: string;
-            data?: Array<{
-              id: number;
-              nama_prodi: string;
-              fakultas?: { singkatan: string; nama_fakultas: string } | null;
-            }>;
+            data?: Prodi[];
           }>("/api/prodi");
 
           const dbProdiList = prodiRes.data?.data || [];
-          if (dbProdiList.length > 0 && isMounted) {
-            setProdiOptions((prevMaster) =>
-              prevMaster.map((m) => {
-                const foundDb = dbProdiList.find(
-                  (db) =>
-                    db.nama_prodi.trim().toLowerCase() ===
-                    m.nama_prodi.trim().toLowerCase()
-                );
-                return foundDb
-                  ? {
-                      ...m,
-                      id_prodi: foundDb.id,
-                      fakultas:
-                        foundDb.fakultas?.nama_fakultas || m.fakultas,
-                      fakultas_singkatan:
-                        foundDb.fakultas?.singkatan || m.fakultas_singkatan,
-                    }
-                  : m;
-              })
-            );
+          if (isMounted) {
+            setProdiOptions(dbProdiList);
+            if (dbProdiList.length > 0) {
+              setSelectedProdiName(dbProdiList[0].nama_prodi);
+              setUsernameInput(
+                generateAutoUsernameFromProdi(dbProdiList[0].nama_prodi)
+              );
+            }
           }
         } catch {
-          // Tetap gunakan daftar 14 Prodi UNUHA statis jika /api/prodi gagal
+          if (isMounted) {
+            setProdiOptions([]);
+          }
         }
 
         if (isMounted) {
@@ -435,11 +303,14 @@ export default function ManajemenDataProdiPage() {
    * Buka Modal dalam Mode Tambah Akun Baru
    */
   const openCreateModal = () => {
-    const defaultProdi = prodiOptions[0] || MASTER_14_PRODI_UNUHA[0];
+    const defaultProdi = prodiOptions[0];
+    const defaultProdiName = defaultProdi?.nama_prodi || "";
     setModalMode("create");
     setEditingAccount(null);
-    setSelectedProdiName(defaultProdi.nama_prodi);
-    setUsernameInput(generateAutoUsernameFromProdi(defaultProdi.nama_prodi));
+    setSelectedProdiName(defaultProdiName);
+    setUsernameInput(
+      defaultProdiName ? generateAutoUsernameFromProdi(defaultProdiName) : ""
+    );
     setPasswordInput("");
     setFormError(null);
     setIsModalOpen(true);
@@ -449,8 +320,12 @@ export default function ManajemenDataProdiPage() {
    * Buka Modal dalam Mode Edit Akun
    */
   const openEditModal = (account: AkunProdiItem) => {
+    const matchedProdi = prodiOptions.find((p) => p.id === account.id_prodi);
     const prodiName =
-      account.prodi?.nama_prodi || MASTER_14_PRODI_UNUHA[0].nama_prodi;
+      account.prodi?.nama_prodi ||
+      matchedProdi?.nama_prodi ||
+      prodiOptions[0]?.nama_prodi ||
+      "";
     setModalMode("edit");
     setEditingAccount(account);
     setSelectedProdiName(prodiName);
@@ -519,21 +394,32 @@ export default function ManajemenDataProdiPage() {
       return;
     }
 
-    const chosenProdiMeta =
-      prodiOptions.find((p) => p.nama_prodi === selectedProdiName) ||
-      MASTER_14_PRODI_UNUHA[0];
+    const chosenProdiMeta = prodiOptions.find(
+      (p) => p.nama_prodi === selectedProdiName
+    );
+
+    if (modalMode === "create" && !chosenProdiMeta) {
+      const msg =
+        "Silakan pilih Program Studi yang valid terlebih dahulu dari daftar.";
+      setFormError(msg);
+      toast.error(msg);
+      return;
+    }
 
     setIsSubmittingForm(true);
 
     try {
-      if (modalMode === "create") {
+      if (modalMode === "create" && chosenProdiMeta) {
         const response = await apiClient.post<AkunProdiMutationResponse>(
           "/api/akun-prodi",
           {
-            id_prodi: chosenProdiMeta.id_prodi,
+            id_prodi: chosenProdiMeta.id,
             nama_prodi: chosenProdiMeta.nama_prodi,
-            fakultas_nama: chosenProdiMeta.fakultas,
-            fakultas_singkatan: chosenProdiMeta.fakultas_singkatan,
+            fakultas_nama:
+              chosenProdiMeta.fakultas?.nama_fakultas ||
+              "Universitas Nurul Huda",
+            fakultas_singkatan:
+              chosenProdiMeta.fakultas?.singkatan || "UNUHA",
             username: cleanUsername,
             password: passwordInput.trim() ? passwordInput.trim() : null,
           }
@@ -705,7 +591,7 @@ export default function ManajemenDataProdiPage() {
 
     return akunProdi.filter((item) => {
       const prodiName = (item.prodi?.nama_prodi || "").toLowerCase();
-      const fakInfo = resolveFakultasLabel(item);
+      const fakInfo = resolveFakultasLabel(item, prodiOptions);
       const uname = item.username.toLowerCase();
 
       return (
@@ -715,7 +601,7 @@ export default function ManajemenDataProdiPage() {
         uname.includes(q)
       );
     });
-  }, [akunProdi, searchQuery]);
+  }, [akunProdi, prodiOptions, searchQuery]);
 
   /**
    * Statistik Ringkas Akun Prodi
@@ -957,12 +843,18 @@ export default function ManajemenDataProdiPage() {
                           colSpan={5}
                           className="py-12 text-center text-slate-500 text-xs"
                         >
-                          Tidak ada data akun Program Studi yang cocok dengan
-                          kata kunci{" "}
-                          <strong className="text-slate-700">
-                            &ldquo;{sanitizePlainText(searchQuery)}&rdquo;
-                          </strong>
-                          .
+                          {searchQuery.trim() ? (
+                            <>
+                              Tidak ada data akun Program Studi yang cocok
+                              dengan kata kunci{" "}
+                              <strong className="text-slate-700">
+                                &ldquo;{sanitizePlainText(searchQuery)}&rdquo;
+                              </strong>
+                              .
+                            </>
+                          ) : (
+                            "Belum ada akun operator Program Studi yang terdaftar di database."
+                          )}
                         </td>
                       </tr>
                     ) : (
@@ -970,7 +862,10 @@ export default function ManajemenDataProdiPage() {
                         const prodiName = sanitizePlainText(
                           item.prodi?.nama_prodi || `Prodi #${item.id_prodi}`
                         );
-                        const fakultasInfo = resolveFakultasLabel(item);
+                        const fakultasInfo = resolveFakultasLabel(
+                          item,
+                          prodiOptions
+                        );
                         const safeUsername = sanitizePlainText(item.username);
                         const isRowBusy = processingRowId === item.id;
 
@@ -1150,7 +1045,7 @@ export default function ManajemenDataProdiPage() {
                 </div>
               )}
 
-              {/* 1. Elemen <select> Pilih Program Studi (14 Prodi UNUHA) */}
+              {/* 1. Elemen <select> Pilih Program Studi (Dinamis dari /api/prodi) */}
               <div>
                 <label
                   htmlFor="select-prodi-unuha"
@@ -1164,14 +1059,39 @@ export default function ManajemenDataProdiPage() {
                     id="select-prodi-unuha"
                     value={selectedProdiName}
                     onChange={handleSelectProdiChange}
-                    disabled={modalMode === "edit" || isSubmittingForm}
+                    disabled={
+                      modalMode === "edit" ||
+                      isSubmittingForm ||
+                      (modalMode === "create" && prodiOptions.length === 0)
+                    }
                     className="w-full appearance-none rounded-xl border border-slate-300 bg-white pl-10 pr-10 py-2.5 text-xs sm:text-sm font-semibold text-slate-900 shadow-2xs focus:border-[#0D47A1] focus:outline-none focus:ring-2 focus:ring-[#0D47A1]/20 disabled:bg-slate-100 disabled:text-slate-500 cursor-pointer"
                   >
-                    {prodiOptions.map((prodi) => (
-                      <option key={prodi.nama_prodi} value={prodi.nama_prodi}>
-                        {prodi.nama_prodi} ({prodi.fakultas_singkatan})
+                    {prodiOptions.length === 0 ? (
+                      <option value={selectedProdiName || ""}>
+                        {selectedProdiName ||
+                          "-- Belum ada data Program Studi di database --"}
                       </option>
-                    ))}
+                    ) : (
+                      <>
+                        {modalMode === "edit" &&
+                          selectedProdiName &&
+                          !prodiOptions.some(
+                            (p) => p.nama_prodi === selectedProdiName
+                          ) && (
+                            <option value={selectedProdiName}>
+                              {selectedProdiName}
+                            </option>
+                          )}
+                        {prodiOptions.map((prodi) => (
+                          <option key={prodi.id} value={prodi.nama_prodi}>
+                            {prodi.nama_prodi}
+                            {prodi.fakultas?.singkatan
+                              ? ` (${prodi.fakultas.singkatan})`
+                              : ""}
+                          </option>
+                        ))}
+                      </>
+                    )}
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2" />
                 </div>
