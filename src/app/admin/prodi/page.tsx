@@ -1,1 +1,1 @@
-export { default } from "../data-prodi/page";
+export { default } from "../data-fakultas/page";

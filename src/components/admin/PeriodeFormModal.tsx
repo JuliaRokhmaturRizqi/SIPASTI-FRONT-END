@@ -183,11 +183,10 @@ export default function PeriodeFormModal({
 
             {/* Pesan Informasi Otomatis Saat Toggle Aktif */}
             {isActiveNow && (
-              <div className="flex items-start gap-2 pt-1 text-[11px] text-amber-800 bg-amber-50/90 border border-amber-200/80 rounded-lg p-2.5">
-                <Info className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2 pt-1 text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200/80 rounded-lg p-2.5">
+                <Info className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
                 <span className="leading-relaxed">
-                  Sistem akan otomatis menonaktifkan periode lain yang sedang
-                  aktif
+                  Sistem mendukung pelaporan multi-periode terbuka. Periode ini akan berstatus Buka/Aktif tanpa menonaktifkan periode aktif lainnya.
                 </span>
               </div>
             )}

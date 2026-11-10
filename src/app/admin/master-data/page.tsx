@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { AxiosError } from "axios";
 import toast, { Toaster } from "react-hot-toast";
 import {
+  AlertCircle,
+  AlertTriangle,
   Building2,
   CheckCircle2,
   Edit3,
@@ -40,6 +42,12 @@ interface Prodi {
   };
 }
 
+interface DeleteConfirmTarget {
+  id: number;
+  nama: string;
+  type: "fakultas" | "prodi";
+}
+
 export default function MasterDataKampusPage() {
   const router = useRouter();
 
@@ -60,6 +68,10 @@ export default function MasterDataKampusPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // State Modal Konfirmasi Hapus Data
+  const [deleteTarget, setDeleteTarget] = useState<DeleteConfirmTarget | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // State Form Fakultas
   const [editFakultasId, setEditFakultasId] = useState<number | null>(null);
@@ -166,7 +178,12 @@ export default function MasterDataKampusPage() {
     
     try {
       if (activeTab === "fakultas") {
-        const payload = { nama_fakultas: namaFakultas, singkatan: singkatanFakultas };
+        const trimmedNama = namaFakultas.trim();
+        const trimmedSingkatan = singkatanFakultas.trim();
+        const payload = {
+          nama_fakultas: trimmedNama,
+          singkatan: trimmedSingkatan || null,
+        };
         if (modalMode === "create") {
           await apiClient.post("/api/fakultas", payload);
           toast.success("Fakultas berhasil ditambahkan.");
@@ -175,7 +192,11 @@ export default function MasterDataKampusPage() {
           toast.success("Fakultas berhasil diperbarui.");
         }
       } else {
-        const payload = { nama_prodi: namaProdi, id_fakultas: Number(idFakultasProdi), periode_mulai_aktif: null };
+        const payload = {
+          nama_prodi: namaProdi.trim(),
+          id_fakultas: Number(idFakultasProdi),
+          periode_mulai_aktif: null,
+        };
         if (modalMode === "create") {
           await apiClient.post("/api/prodi", payload);
           toast.success("Program Studi berhasil ditambahkan.");
@@ -186,21 +207,51 @@ export default function MasterDataKampusPage() {
       }
       setIsModalOpen(false);
       await fetchData();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || "Terjadi kesalahan saat menyimpan data.");
+    } catch (err: unknown) {
+      const axiosErr = err as AxiosError<{
+        message?: string;
+        errors?: Record<string, string[]>;
+      }>;
+      const firstValidationError = axiosErr.response?.data?.errors
+        ? Object.values(axiosErr.response.data.errors)[0]?.[0]
+        : undefined;
+      toast.error(
+        firstValidationError ||
+          axiosErr.response?.data?.message ||
+          "Terjadi kesalahan saat menyimpan data."
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: number, type: "fakultas" | "prodi") => {
-    if (!window.confirm(`Apakah Anda yakin ingin menghapus data ${type} ini?`)) return;
+  const handleOpenDeleteConfirm = (id: number, nama: string, type: "fakultas" | "prodi") => {
+    setDeleteTarget({ id, nama, type });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget || isDeleting) return;
+
+    setIsDeleting(true);
+    const { id, type, nama } = deleteTarget;
+    const typeLabel = type === "fakultas" ? "Fakultas" : "Program Studi";
+
     try {
-      await apiClient.delete(`/api/${type}/${id}`);
-      toast.success(`Data ${type} berhasil dihapus.`);
+      const response = await apiClient.delete(`/api/${type}/${id}`);
+      const successMsg =
+        response.data?.message ||
+        `Data ${typeLabel} "${nama}" berhasil dihapus dari database.`;
+      toast.success(successMsg);
+      setDeleteTarget(null);
       await fetchData();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || `Gagal menghapus data ${type}.`);
+    } catch (err: unknown) {
+      const axiosErr = err as AxiosError<{ message?: string }>;
+      toast.error(
+        axiosErr.response?.data?.message ||
+          `Gagal menghapus data ${typeLabel} dari database.`
+      );
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -295,7 +346,7 @@ export default function MasterDataKampusPage() {
                         <td className="px-6 py-4 font-mono text-xs bg-slate-100 rounded inline-block mt-3 ml-6 px-2">{sanitizePlainText(fak.singkatan || "-")}</td>
                         <td className="px-6 py-4 text-right">
                           <button onClick={() => openModalEditFakultas(fak)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"><Edit3 className="w-4 h-4" /></button>
-                          <button onClick={() => handleDelete(fak.id, "fakultas")} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => handleOpenDeleteConfirm(fak.id, fak.nama_fakultas, "fakultas")} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
                         </td>
                       </tr>
                     ))}
@@ -306,7 +357,7 @@ export default function MasterDataKampusPage() {
                         <td className="px-6 py-4 text-slate-600">{sanitizePlainText(prd.fakultas?.nama_fakultas || "-")}</td>
                         <td className="px-6 py-4 text-right">
                           <button onClick={() => openModalEditProdi(prd)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"><Edit3 className="w-4 h-4" /></button>
-                          <button onClick={() => handleDelete(prd.id, "prodi")} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => handleOpenDeleteConfirm(prd.id, prd.nama_prodi, "prodi")} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
                         </td>
                       </tr>
                     ))}
@@ -364,6 +415,71 @@ export default function MasterDataKampusPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Modal Konfirmasi Hapus Data Master */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-100 p-6 space-y-5 animate-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-red-100/80 border border-red-200 text-red-600 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-900">
+                  Konfirmasi Hapus Data
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Apakah Anda yakin ingin menghapus data {deleteTarget.type === "fakultas" ? "Fakultas" : "Program Studi"} berikut secara permanen dari database?
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                {deleteTarget.type === "fakultas" ? "Nama Fakultas" : "Nama Program Studi"}
+              </p>
+              <p className="text-sm font-semibold text-slate-900 break-words">
+                {sanitizePlainText(deleteTarget.nama)}
+              </p>
+            </div>
+
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/80 text-amber-800 text-xs flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+              <span>
+                Tindakan ini permanen. Data yang dihapus tidak dapat dipulihkan kembali dari database sistem.
+              </span>
+            </div>
+
+            <div className="pt-2 flex items-center justify-end gap-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                disabled={isDeleting}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs sm:text-sm font-semibold text-slate-700 transition disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs sm:text-sm font-semibold shadow-sm transition disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Menghapus...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Ya, Hapus Data</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

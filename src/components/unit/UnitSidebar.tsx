@@ -4,9 +4,8 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Briefcase,
   Building2,
-  FileCheck2,
-  GraduationCap,
   LayoutDashboard,
   LogOut,
   ShieldCheck,
@@ -14,36 +13,31 @@ import {
 } from "lucide-react";
 import { sanitizePlainText } from "@/lib/security";
 
-interface ProdiSidebarProps {
+export interface UnitSidebarProps {
   username?: string;
-  prodiName?: string;
-  fakultasLabel?: string;
-  completedCount?: number;
-  totalCount?: number;
+  namaUnit?: string;
+  kategoriUnit?: string;
   isMobileOpen: boolean;
   onCloseMobile: () => void;
   onLogout: () => void;
   isLoggingOut: boolean;
 }
 
-export default function ProdiSidebar({
-  username = "prodi_ti",
-  prodiName = "Program Studi",
-  fakultasLabel = "Universitas Nurul Huda",
-  completedCount = 0,
-  totalCount = 4,
+export default function UnitSidebar({
+  username = "operator_unit",
+  namaUnit = "Unit Kerja",
+  kategoriUnit = "Unit Kerja",
   isMobileOpen,
   onCloseMobile,
   onLogout,
   isLoggingOut,
-}: ProdiSidebarProps) {
+}: UnitSidebarProps) {
   const pathname = usePathname();
   const safeUsername = sanitizePlainText(username);
-  const safeProdiName = sanitizePlainText(prodiName);
-  const safeFakultasLabel = sanitizePlainText(fakultasLabel);
+  const safeNamaUnit = sanitizePlainText(namaUnit);
+  const safeKategoriUnit = sanitizePlainText(kategoriUnit);
 
-  const isDashboardActive = pathname === "/prodi/dashboard";
-  const isTahapanActive = pathname.startsWith("/prodi/tahapan");
+  const isDashboardActive = pathname === "/unit/dashboard";
 
   return (
     <>
@@ -55,9 +49,9 @@ export default function ProdiSidebar({
         />
       )}
 
-      {/* Sidebar Navigasi Kiri (Persis Gaya Admin: bg-[#0f172a] & Biru Gelap) */}
+      {/* Sidebar Navigasi Kiri (Konsisten dengan FakultasSidebar: bg-gradient-to-b from-[#0f172a] via-blue-950 to-[#0f172a]) */}
       <aside
-        aria-label="Navigasi Utama Operator Program Studi"
+        aria-label="Navigasi Utama Operator Unit Kerja"
         className={`fixed lg:static inset-y-0 left-0 z-40 w-64 shrink-0 bg-gradient-to-b from-[#0f172a] via-blue-950 to-[#0f172a] text-white border-r border-white/10 flex flex-col justify-between transition-transform duration-200 ${
           isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
@@ -74,7 +68,7 @@ export default function ProdiSidebar({
                   SIPASTI
                 </span>
                 <span className="text-[10px] font-semibold uppercase tracking-widest text-[#FBC02D]">
-                  Operator Prodi
+                  Operator Unit Kerja
                 </span>
               </div>
             </div>
@@ -89,18 +83,18 @@ export default function ProdiSidebar({
             </button>
           </div>
 
-          {/* Informasi Identitas Prodi */}
+          {/* Informasi Identitas Unit Kerja */}
           <div className="px-4 pt-4">
             <div className="rounded-xl bg-white/5 border border-white/10 p-3.5 space-y-1">
               <div className="flex items-center gap-2 text-[#FBC02D] text-[10px] font-bold uppercase tracking-wider">
-                <GraduationCap className="w-3.5 h-3.5 shrink-0" />
-                <span>Unit Program Studi</span>
+                <Briefcase className="w-3.5 h-3.5 shrink-0" />
+                <span>{safeKategoriUnit}</span>
               </div>
               <p className="text-xs font-bold text-white leading-snug">
-                {safeProdiName}
+                {safeNamaUnit}
               </p>
               <p className="text-[11px] text-slate-400 truncate">
-                {safeFakultasLabel}
+                Universitas Nurul Huda
               </p>
             </div>
           </div>
@@ -112,42 +106,20 @@ export default function ProdiSidebar({
             </p>
 
             <Link
-              href="/prodi/dashboard"
+              href="/unit/dashboard"
               onClick={onCloseMobile}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition ${
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition ${
                 isDashboardActive
                   ? "bg-[#0D47A1] text-white shadow-md shadow-blue-950/50 border border-white/15"
                   : "text-slate-300 hover:bg-white/5 hover:text-white"
               }`}
             >
-              <span className="flex items-center gap-3">
-                <LayoutDashboard
-                  className={`w-4 h-4 ${
-                    isDashboardActive ? "text-[#FBC02D]" : "text-slate-400"
-                  }`}
-                />
-                <span>Overview Pelaporan</span>
-              </span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FBC02D] text-slate-950">
-                {completedCount}/{totalCount}
-              </span>
-            </Link>
-
-            <Link
-              href="/prodi/tahapan"
-              onClick={onCloseMobile}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition ${
-                isTahapanActive
-                  ? "bg-[#0D47A1] text-white shadow-md shadow-blue-950/50 border border-white/15"
-                  : "text-slate-300 hover:bg-white/5 hover:text-white"
-              }`}
-            >
-              <FileCheck2
+              <LayoutDashboard
                 className={`w-4 h-4 ${
-                  isTahapanActive ? "text-[#FBC02D]" : "text-slate-400"
+                  isDashboardActive ? "text-[#FBC02D]" : "text-slate-400"
                 }`}
               />
-              <span>Tahapan Surat Pernyataan</span>
+              <span>Dashboard Pelaporan</span>
             </Link>
           </nav>
         </div>
@@ -163,7 +135,7 @@ export default function ProdiSidebar({
                 {safeUsername}
               </p>
               <p className="text-[10px] text-slate-400">
-                Otoritas Operator Prodi
+                Otoritas {safeKategoriUnit}
               </p>
             </div>
           </div>

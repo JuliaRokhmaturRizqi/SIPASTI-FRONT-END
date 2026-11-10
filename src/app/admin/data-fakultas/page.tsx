@@ -6,6 +6,7 @@ import { AxiosError } from "axios";
 import toast, { Toaster } from "react-hot-toast";
 import {
   AlertCircle,
+  AlertTriangle,
   Building2,
   CheckCircle2,
   ChevronDown,
@@ -19,8 +20,8 @@ import {
   Power,
   RefreshCw,
   Search,
-  ShieldCheck,
   Sparkles,
+  Trash2,
   UserCheck,
   UserPlus,
   UserX,
@@ -33,113 +34,133 @@ import { ApiErrorResponse, AuthUser } from "@/types/auth";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 
 /**
- * Interface Master Program Studi dari API GET /api/prodi
+ * Interface Master Fakultas dari API GET /api/fakultas
  */
-export interface Prodi {
+export interface Fakultas {
   id: number;
-  id_fakultas?: number | null;
-  nama_prodi: string;
-  periode_mulai_aktif?: string | null;
-  fakultas?: {
-    id: number;
-    singkatan: string;
-    nama_fakultas: string;
-  } | null;
+  nama_fakultas: string;
+  singkatan?: string | null;
+  prodi_count?: number;
   users_count?: number;
-  dokumen_pelaporan_count?: number;
+  prodi?: Array<{
+    id: number;
+    id_fakultas: number;
+    nama_prodi: string;
+    periode_mulai_aktif?: string | null;
+  }>;
+  users?: Array<{
+    id: number;
+    username: string;
+    role: "user" | "admin";
+    id_fakultas: number;
+    is_active: boolean;
+    created_at?: string;
+  }>;
 }
 
 /**
- * Interface Data Akun Operator Prodi dari API GET /api/akun-prodi
+ * Interface Data Akun Operator Fakultas dari API GET /api/akun-fakultas
  */
-export interface AkunProdiItem {
+export interface AkunFakultasItem {
   id: number;
   username: string;
   role: "user" | "admin";
-  id_prodi: number;
+  id_fakultas: number;
   is_active: boolean;
   created_at?: string;
-  prodi?: {
+  fakultas?: {
     id: number;
-    nama_prodi: string;
-    id_fakultas?: number | null;
-    fakultas?: {
+    singkatan?: string | null;
+    nama_fakultas: string;
+    prodi?: Array<{
       id: number;
-      singkatan: string;
-      nama_fakultas: string;
-    } | null;
+      id_fakultas: number;
+      nama_prodi: string;
+      periode_mulai_aktif?: string | null;
+    }>;
   } | null;
 }
 
-export interface AkunProdiListResponse {
+export interface AkunFakultasListResponse {
   status: "success" | "error";
   message?: string;
-  data?: AkunProdiItem[];
+  data?: AkunFakultasItem[];
 }
 
-export interface AkunProdiMutationResponse {
+export interface AkunFakultasMutationResponse {
   status: "success" | "error";
   message: string;
-  data?: AkunProdiItem;
+  data?: AkunFakultasItem;
 }
 
 /**
  * Logika JavaScript Auto-fill Cerdas:
- * Mengubah nama Program Studi (misal: "S1 Informatika" atau "S1 Pendidikan Bahasa Arab")
+ * Mengubah nama Fakultas (misal: "Fakultas Sains dan Teknologi" atau "Fakultas Agama Islam")
  * menjadi format username otomatis:
- * - "S1 Informatika" -> "prodi_informatika"
- * - "S1 Pendidikan Bahasa Arab" -> "prodi_pendidikan_bahasa_arab"
- * - "S2 Pendidikan Agama Islam" -> "prodi_s2_pendidikan_agama_islam"
+ * - "Fakultas Sains dan Teknologi" -> "fakultas_sains_dan_teknologi"
+ * - "Fakultas Agama Islam" -> "fakultas_agama_islam"
+ * - "Pascasarjana" -> "fakultas_pascasarjana"
  */
-export function generateAutoUsernameFromProdi(namaProdi: string): string {
-  const cleaned = namaProdi
+export function generateAutoUsernameFromFakultas(namaFakultas: string): string {
+  const cleaned = namaFakultas
     .trim()
     .toLowerCase()
-    .replace(/^s1\s+/i, "") // Hapus awalan 's1 '
+    .replace(/^fakultas\s+/i, "") // Hapus awalan 'fakultas ' agar tidak menjadi fakultas_fakultas_...
     .replace(/[^a-z0-9\s]/g, "") // Bersihkan karakter non-alfanumerik
     .replace(/\s+/g, "_"); // Ganti spasi dengan underscore
 
-  return cleaned ? `prodi_${cleaned}` : "prodi_operator";
+  return cleaned ? `fakultas_${cleaned}` : "fakultas_operator";
 }
 
 /**
- * Helper mencocokkan Fakultas untuk akun Prodi berdasarkan relasi API atau state prodiOptions dinamis
+ * Helper mencocokkan informasi Fakultas untuk akun Operator berdasarkan relasi API atau state fakultasOptions dinamis
  */
 function resolveFakultasLabel(
-  item: AkunProdiItem,
-  prodiOptions: Prodi[] = []
+  item: AkunFakultasItem,
+  fakultasOptions: Fakultas[] = []
 ): {
   nama_fakultas: string;
   singkatan: string;
+  prodiCount: number;
 } {
-  if (item.prodi?.fakultas?.nama_fakultas) {
+  const matchedDynamic = fakultasOptions.find(
+    (f) =>
+      f.id === item.id_fakultas ||
+      (item.fakultas?.nama_fakultas &&
+        f.nama_fakultas.trim().toLowerCase() ===
+          item.fakultas.nama_fakultas.trim().toLowerCase())
+  );
+
+  if (item.fakultas?.nama_fakultas) {
     return {
-      nama_fakultas: item.prodi.fakultas.nama_fakultas,
-      singkatan: item.prodi.fakultas.singkatan || "UNUHA",
+      nama_fakultas: item.fakultas.nama_fakultas,
+      singkatan:
+        item.fakultas.singkatan || matchedDynamic?.singkatan || "UNUHA",
+      prodiCount:
+        item.fakultas.prodi?.length ??
+        matchedDynamic?.prodi_count ??
+        matchedDynamic?.prodi?.length ??
+        0,
     };
   }
 
-  const prodiName = (item.prodi?.nama_prodi || "").trim().toLowerCase();
-  const matchedDynamic = prodiOptions.find(
-    (p) =>
-      p.id === item.id_prodi ||
-      (prodiName && p.nama_prodi.trim().toLowerCase() === prodiName)
-  );
-
-  if (matchedDynamic?.fakultas?.nama_fakultas) {
+  if (matchedDynamic) {
     return {
-      nama_fakultas: matchedDynamic.fakultas.nama_fakultas,
-      singkatan: matchedDynamic.fakultas.singkatan || "UNUHA",
+      nama_fakultas: matchedDynamic.nama_fakultas,
+      singkatan: matchedDynamic.singkatan || "UNUHA",
+      prodiCount:
+        matchedDynamic.prodi_count ?? matchedDynamic.prodi?.length ?? 0,
     };
   }
 
   return {
     nama_fakultas: "Universitas Nurul Huda",
     singkatan: "UNUHA",
+    prodiCount: 0,
   };
 }
 
-export default function ManajemenDataProdiPage() {
+export default function ManajemenDataFakultasPage() {
   const router = useRouter();
 
   // State Otorisasi & Profil Admin
@@ -150,19 +171,18 @@ export default function ManajemenDataProdiPage() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] =
     useState<boolean>(false);
 
-  // State Utama Tabel Akun Prodi & Pencarian (Dinamis dari API)
-  const [akunProdi, setAkunProdi] = useState<AkunProdiItem[]>([]);
-  const [prodiOptions, setProdiOptions] = useState<Prodi[]>([]);
+  // State Utama Tabel Akun Fakultas & Pencarian (Dinamis dari API)
+  const [akunFakultas, setAkunFakultas] = useState<AkunFakultasItem[]>([]);
+  const [fakultasOptions, setFakultasOptions] = useState<Fakultas[]>([]);
   const [isLoadingTable, setIsLoadingTable] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  // State Modal Form 'Hybrid' (Tambah / Edit Akun)
+  // State Modal Form 'Hybrid' (Tambah / Edit Akun Fakultas)
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
-  const [editingAccount, setEditingAccount] = useState<AkunProdiItem | null>(
-    null
-  );
-  const [selectedProdiName, setSelectedProdiName] = useState<string>("");
+  const [editingAccount, setEditingAccount] =
+    useState<AkunFakultasItem | null>(null);
+  const [selectedFakultasName, setSelectedFakultasName] = useState<string>("");
   const [usernameInput, setUsernameInput] = useState<string>("");
   const [passwordInput, setPasswordInput] = useState<string>("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -171,6 +191,11 @@ export default function ManajemenDataProdiPage() {
   // State Loading Aksi Cepat (Reset Sandi & Toggle Status per baris)
   const [processingRowId, setProcessingRowId] = useState<number | null>(null);
 
+  // State Modal Konfirmasi Hapus Akun Operator Fakultas
+  const [deleteAccountTarget, setDeleteAccountTarget] =
+    useState<AkunFakultasItem | null>(null);
+  const [isDeletingAccount, setIsDeletingAccount] = useState<boolean>(false);
+
   const handleUnauthorizedExit = useCallback(() => {
     clearAuthSession();
     setIsAuthorized(false);
@@ -178,20 +203,56 @@ export default function ManajemenDataProdiPage() {
   }, [router]);
 
   /**
-   * Fungsi Fetch Data Tabel Akun Prodi:
-   * GET /api/akun-prodi menggunakan instance Axios (dengan Bearer token)
+   * Fungsi Fetch Data Master Fakultas & Tabel Akun Fakultas:
+   * Mengambil dari GET /api/fakultas (termasuk relasi users) dan GET /api/akun-fakultas
    */
-  const fetchAkunProdi = useCallback(
+  const fetchAkunFakultas = useCallback(
     async (showSpinner = true) => {
       if (showSpinner) {
         setIsLoadingTable(true);
       }
 
       try {
-        const response =
-          await apiClient.get<AkunProdiListResponse>("/api/akun-prodi");
-        const apiData = response.data?.data || [];
-        setAkunProdi(apiData);
+        const [fakultasRes, akunRes] = await Promise.all([
+          apiClient.get<{ status: string; data?: Fakultas[] }>("/api/fakultas"),
+          apiClient
+            .get<AkunFakultasListResponse>("/api/akun-fakultas")
+            .catch(() => null),
+        ]);
+
+        const dbFakultasList = fakultasRes.data?.data || [];
+        setFakultasOptions(dbFakultasList);
+
+        const directAccounts = akunRes?.data?.data;
+        if (Array.isArray(directAccounts) && directAccounts.length > 0) {
+          setAkunFakultas(directAccounts);
+        } else {
+          // Ekstrak dari relasi users di dalam /api/fakultas jika tersedia
+          const flattenedAccounts: AkunFakultasItem[] = [];
+          dbFakultasList.forEach((fak) => {
+            if (Array.isArray(fak.users)) {
+              fak.users.forEach((usr) => {
+                if (usr.role === "user") {
+                  flattenedAccounts.push({
+                    id: usr.id,
+                    username: usr.username,
+                    role: usr.role,
+                    id_fakultas: usr.id_fakultas ?? fak.id,
+                    is_active: Boolean(usr.is_active),
+                    created_at: usr.created_at,
+                    fakultas: {
+                      id: fak.id,
+                      singkatan: fak.singkatan,
+                      nama_fakultas: fak.nama_fakultas,
+                      prodi: fak.prodi,
+                    },
+                  });
+                }
+              });
+            }
+          });
+          setAkunFakultas(flattenedAccounts);
+        }
       } catch (err) {
         const axiosErr = err as AxiosError<ApiErrorResponse>;
         const status = axiosErr.response?.status;
@@ -203,7 +264,7 @@ export default function ManajemenDataProdiPage() {
 
         toast.error(
           axiosErr.response?.data?.message ||
-            "Gagal memuat daftar akun operator Prodi dari server."
+            "Gagal memuat daftar akun operator Fakultas dari server."
         );
       } finally {
         if (showSpinner) {
@@ -215,7 +276,7 @@ export default function ManajemenDataProdiPage() {
   );
 
   /**
-   * Verifikasi Otorisasi Admin & Inisialisasi Data GET /api/prodi serta GET /api/akun-prodi
+   * Verifikasi Otorisasi Admin & Inisialisasi Data GET /api/fakultas serta GET /api/akun-fakultas
    */
   useEffect(() => {
     let isMounted = true;
@@ -242,26 +303,26 @@ export default function ManajemenDataProdiPage() {
           return;
         }
 
-        // Ambil data Master Program Studi secara dinamis dari /api/prodi
+        // Ambil data Master Fakultas secara dinamis dari /api/fakultas
         try {
-          const prodiRes = await apiClient.get<{
+          const fakultasRes = await apiClient.get<{
             status: string;
-            data?: Prodi[];
-          }>("/api/prodi");
+            data?: Fakultas[];
+          }>("/api/fakultas");
 
-          const dbProdiList = prodiRes.data?.data || [];
+          const dbFakultasList = fakultasRes.data?.data || [];
           if (isMounted) {
-            setProdiOptions(dbProdiList);
-            if (dbProdiList.length > 0) {
-              setSelectedProdiName(dbProdiList[0].nama_prodi);
+            setFakultasOptions(dbFakultasList);
+            if (dbFakultasList.length > 0) {
+              setSelectedFakultasName(dbFakultasList[0].nama_fakultas);
               setUsernameInput(
-                generateAutoUsernameFromProdi(dbProdiList[0].nama_prodi)
+                generateAutoUsernameFromFakultas(dbFakultasList[0].nama_fakultas)
               );
             }
           }
         } catch {
           if (isMounted) {
-            setProdiOptions([]);
+            setFakultasOptions([]);
           }
         }
 
@@ -271,7 +332,7 @@ export default function ManajemenDataProdiPage() {
           setIsCheckingAuth(false);
         }
 
-        await fetchAkunProdi(true);
+        await fetchAkunFakultas(true);
       } catch (err) {
         const axiosErr = err as AxiosError;
         const status = axiosErr.response?.status;
@@ -286,7 +347,7 @@ export default function ManajemenDataProdiPage() {
     return () => {
       isMounted = false;
     };
-  }, [handleUnauthorizedExit, fetchAkunProdi]);
+  }, [handleUnauthorizedExit, fetchAkunFakultas]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -303,13 +364,15 @@ export default function ManajemenDataProdiPage() {
    * Buka Modal dalam Mode Tambah Akun Baru
    */
   const openCreateModal = () => {
-    const defaultProdi = prodiOptions[0];
-    const defaultProdiName = defaultProdi?.nama_prodi || "";
+    const defaultFakultas = fakultasOptions[0];
+    const defaultFakultasName = defaultFakultas?.nama_fakultas || "";
     setModalMode("create");
     setEditingAccount(null);
-    setSelectedProdiName(defaultProdiName);
+    setSelectedFakultasName(defaultFakultasName);
     setUsernameInput(
-      defaultProdiName ? generateAutoUsernameFromProdi(defaultProdiName) : ""
+      defaultFakultasName
+        ? generateAutoUsernameFromFakultas(defaultFakultasName)
+        : ""
     );
     setPasswordInput("");
     setFormError(null);
@@ -319,16 +382,18 @@ export default function ManajemenDataProdiPage() {
   /**
    * Buka Modal dalam Mode Edit Akun
    */
-  const openEditModal = (account: AkunProdiItem) => {
-    const matchedProdi = prodiOptions.find((p) => p.id === account.id_prodi);
-    const prodiName =
-      account.prodi?.nama_prodi ||
-      matchedProdi?.nama_prodi ||
-      prodiOptions[0]?.nama_prodi ||
+  const openEditModal = (account: AkunFakultasItem) => {
+    const matchedFakultas = fakultasOptions.find(
+      (f) => f.id === account.id_fakultas
+    );
+    const fakultasName =
+      account.fakultas?.nama_fakultas ||
+      matchedFakultas?.nama_fakultas ||
+      fakultasOptions[0]?.nama_fakultas ||
       "";
     setModalMode("edit");
     setEditingAccount(account);
-    setSelectedProdiName(prodiName);
+    setSelectedFakultasName(fakultasName);
     setUsernameInput(account.username);
     setPasswordInput("");
     setFormError(null);
@@ -343,24 +408,26 @@ export default function ManajemenDataProdiPage() {
   };
 
   /**
-   * Handler saat Dropdown Program Studi di Modal dipilih:
+   * Handler saat Dropdown Fakultas di Modal dipilih:
    * Otomatis men-generate & mengisi state username (Auto-fill Cerdas)
    * Contoh:
-   * - "S1 Informatika" -> "prodi_informatika"
-   * - "S1 Pendidikan Bahasa Arab" -> "prodi_pendidikan_bahasa_arab"
+   * - "Fakultas Sains dan Teknologi" -> "fakultas_sains_dan_teknologi"
+   * - "Fakultas Agama Islam" -> "fakultas_agama_islam"
    */
-  const handleSelectProdiChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const chosenProdiName = e.target.value;
-    setSelectedProdiName(chosenProdiName);
+  const handleSelectFakultasChange = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    const chosenFakultasName = e.target.value;
+    setSelectedFakultasName(chosenFakultasName);
 
     const autoGeneratedUsername =
-      generateAutoUsernameFromProdi(chosenProdiName);
+      generateAutoUsernameFromFakultas(chosenFakultasName);
     setUsernameInput(autoGeneratedUsername);
     if (formError) setFormError(null);
   };
 
   /**
-   * Submit Form Modal (POST untuk Tambah / PUT untuk Edit ke /api/akun-prodi)
+   * Submit Form Modal (POST untuk Tambah / PUT untuk Edit ke /api/akun-fakultas)
    */
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -394,13 +461,13 @@ export default function ManajemenDataProdiPage() {
       return;
     }
 
-    const chosenProdiMeta = prodiOptions.find(
-      (p) => p.nama_prodi === selectedProdiName
+    const chosenFakultasMeta = fakultasOptions.find(
+      (f) => f.nama_fakultas === selectedFakultasName
     );
 
-    if (modalMode === "create" && !chosenProdiMeta) {
+    if (modalMode === "create" && !chosenFakultasMeta) {
       const msg =
-        "Silakan pilih Program Studi yang valid terlebih dahulu dari daftar.";
+        "Silakan pilih Fakultas yang valid terlebih dahulu dari daftar.";
       setFormError(msg);
       toast.error(msg);
       return;
@@ -409,17 +476,11 @@ export default function ManajemenDataProdiPage() {
     setIsSubmittingForm(true);
 
     try {
-      if (modalMode === "create" && chosenProdiMeta) {
-        const response = await apiClient.post<AkunProdiMutationResponse>(
-          "/api/akun-prodi",
+      if (modalMode === "create" && chosenFakultasMeta) {
+        const response = await apiClient.post<AkunFakultasMutationResponse>(
+          "/api/akun-fakultas",
           {
-            id_prodi: chosenProdiMeta.id,
-            nama_prodi: chosenProdiMeta.nama_prodi,
-            fakultas_nama:
-              chosenProdiMeta.fakultas?.nama_fakultas ||
-              "Universitas Nurul Huda",
-            fakultas_singkatan:
-              chosenProdiMeta.fakultas?.singkatan || "UNUHA",
+            id_fakultas: chosenFakultasMeta.id,
             username: cleanUsername,
             password: passwordInput.trim() ? passwordInput.trim() : null,
           }
@@ -430,16 +491,24 @@ export default function ManajemenDataProdiPage() {
             `Akun operator ${cleanUsername} berhasil ditambahkan.`
         );
       } else if (modalMode === "edit" && editingAccount) {
-        const payload: { username: string; password?: string | null } = {
+        const payload: {
+          username: string;
+          id_fakultas?: number;
+          password?: string | null;
+        } = {
           username: cleanUsername,
         };
+
+        if (chosenFakultasMeta) {
+          payload.id_fakultas = chosenFakultasMeta.id;
+        }
 
         if (passwordInput.trim().length > 0) {
           payload.password = passwordInput.trim();
         }
 
-        const response = await apiClient.put<AkunProdiMutationResponse>(
-          `/api/akun-prodi/${editingAccount.id}`,
+        const response = await apiClient.put<AkunFakultasMutationResponse>(
+          `/api/akun-fakultas/${editingAccount.id}`,
           payload
         );
 
@@ -451,7 +520,7 @@ export default function ManajemenDataProdiPage() {
 
       setIsModalOpen(false);
       setEditingAccount(null);
-      await fetchAkunProdi(false);
+      await fetchAkunFakultas(false);
     } catch (err) {
       const axiosErr = err as AxiosError<
         ApiErrorResponse & { errors?: Record<string, string[]> }
@@ -464,11 +533,11 @@ export default function ManajemenDataProdiPage() {
       }
 
       const backendError =
-        axiosErr.response?.data?.errors?.id_prodi?.[0] ||
+        axiosErr.response?.data?.errors?.id_fakultas?.[0] ||
         axiosErr.response?.data?.errors?.username?.[0] ||
         axiosErr.response?.data?.errors?.password?.[0] ||
         axiosErr.response?.data?.message ||
-        "Terjadi kesalahan saat menyimpan data akun operator Prodi.";
+        "Terjadi kesalahan saat menyimpan data akun operator Fakultas.";
 
       const safeErr = sanitizePlainText(backendError);
       setFormError(safeErr);
@@ -480,15 +549,16 @@ export default function ManajemenDataProdiPage() {
 
   /**
    * Quick Action b: Reset Sandi
-   * Menggunakan window.confirm. Jika OK, kirim PUT request ke /api/akun-prodi/{id}
-   * dengan payload password kosong untuk memicu reset default (Unuha2026!) di backend.
+   * Mengirim PUT request ke /api/akun-fakultas/{id}
+   * dengan payload password kosong & reset_password: true untuk memicu reset default (Unuha2026!) di backend.
    */
-  const handleResetPassword = async (account: AkunProdiItem) => {
+  const handleResetPassword = async (account: AkunFakultasItem) => {
     if (processingRowId !== null) return;
 
-    const prodiLabel = account.prodi?.nama_prodi || account.username;
+    const fakultasLabel =
+      account.fakultas?.nama_fakultas || account.username;
     const confirmed = window.confirm(
-      `Apakah Anda yakin ingin mereset sandi akun "${account.username}" (${prodiLabel}) ke sandi default (Unuha2026!)?`
+      `Apakah Anda yakin ingin mereset sandi akun "${account.username}" (${fakultasLabel}) ke sandi default (Unuha2026!)?`
     );
 
     if (!confirmed) return;
@@ -496,8 +566,8 @@ export default function ManajemenDataProdiPage() {
     setProcessingRowId(account.id);
 
     try {
-      const response = await apiClient.put<AkunProdiMutationResponse>(
-        `/api/akun-prodi/${account.id}`,
+      const response = await apiClient.put<AkunFakultasMutationResponse>(
+        `/api/akun-fakultas/${account.id}`,
         {
           username: account.username,
           password: "",
@@ -509,7 +579,7 @@ export default function ManajemenDataProdiPage() {
         response.data?.message ||
           `Sandi untuk akun ${account.username} berhasil direset ke default (Unuha2026!).`
       );
-      await fetchAkunProdi(false);
+      await fetchAkunFakultas(false);
     } catch (err) {
       const axiosErr = err as AxiosError<ApiErrorResponse>;
       if (
@@ -531,20 +601,20 @@ export default function ManajemenDataProdiPage() {
 
   /**
    * Quick Action c: Suspend / Aktifkan Toggle
-   * Mengirim request PATCH /api/akun-prodi/{id}/toggle-status
+   * Mengirim request PATCH /api/akun-fakultas/{id}/toggle-status
    */
-  const handleToggleStatus = async (account: AkunProdiItem) => {
+  const handleToggleStatus = async (account: AkunFakultasItem) => {
     if (processingRowId !== null) return;
 
     setProcessingRowId(account.id);
 
     try {
-      const response = await apiClient.patch<AkunProdiMutationResponse>(
-        `/api/akun-prodi/${account.id}/toggle-status`
+      const response = await apiClient.patch<AkunFakultasMutationResponse>(
+        `/api/akun-fakultas/${account.id}/toggle-status`
       );
 
       const updatedItem = response.data?.data;
-      setAkunProdi((prevList) =>
+      setAkunFakultas((prevList) =>
         prevList.map((item) =>
           item.id === account.id
             ? {
@@ -562,7 +632,7 @@ export default function ManajemenDataProdiPage() {
         response.data?.message ||
           `Status akses akun ${account.username} berhasil diperbarui.`
       );
-      await fetchAkunProdi(false);
+      await fetchAkunFakultas(false);
     } catch (err) {
       const axiosErr = err as AxiosError<ApiErrorResponse>;
       if (
@@ -583,35 +653,71 @@ export default function ManajemenDataProdiPage() {
   };
 
   /**
-   * Filter pencarian real-time berdasarkan Nama Prodi, Fakultas, atau Username
+   * Handler Konfirmasi Hapus Akun Operator Fakultas
+   */
+  const handleConfirmDeleteAccount = async () => {
+    if (!deleteAccountTarget || isDeletingAccount) return;
+
+    setIsDeletingAccount(true);
+    const targetUsername = deleteAccountTarget.username;
+
+    try {
+      const response = await apiClient.delete(
+        `/api/akun-fakultas/${deleteAccountTarget.id}`
+      );
+      toast.success(
+        response.data?.message ||
+          `Akun operator "${targetUsername}" berhasil dihapus dari database.`
+      );
+      setDeleteAccountTarget(null);
+      await fetchAkunFakultas(false);
+    } catch (err) {
+      const axiosErr = err as AxiosError<ApiErrorResponse>;
+      if (
+        axiosErr.response?.status === 401 ||
+        axiosErr.response?.status === 403
+      ) {
+        handleUnauthorizedExit();
+        return;
+      }
+
+      toast.error(
+        axiosErr.response?.data?.message ||
+          `Gagal menghapus akun operator ${targetUsername}.`
+      );
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
+  /**
+   * Filter pencarian real-time berdasarkan Nama Fakultas, Singkatan, atau Username
    */
   const filteredAccounts = useMemo(() => {
     const q = sanitizePlainText(searchQuery).toLowerCase().trim();
-    if (!q) return akunProdi;
+    if (!q) return akunFakultas;
 
-    return akunProdi.filter((item) => {
-      const prodiName = (item.prodi?.nama_prodi || "").toLowerCase();
-      const fakInfo = resolveFakultasLabel(item, prodiOptions);
+    return akunFakultas.filter((item) => {
+      const fakInfo = resolveFakultasLabel(item, fakultasOptions);
       const uname = item.username.toLowerCase();
 
       return (
-        prodiName.includes(q) ||
         fakInfo.nama_fakultas.toLowerCase().includes(q) ||
         fakInfo.singkatan.toLowerCase().includes(q) ||
         uname.includes(q)
       );
     });
-  }, [akunProdi, prodiOptions, searchQuery]);
+  }, [akunFakultas, fakultasOptions, searchQuery]);
 
   /**
-   * Statistik Ringkas Akun Prodi
+   * Statistik Ringkas Akun Fakultas
    */
   const stats = useMemo(() => {
-    const total = akunProdi.length;
-    const aktif = akunProdi.filter((a) => a.is_active).length;
+    const total = akunFakultas.length;
+    const aktif = akunFakultas.filter((a) => a.is_active).length;
     const nonaktif = total - aktif;
     return { total, aktif, nonaktif };
-  }, [akunProdi]);
+  }, [akunFakultas]);
 
   if (isCheckingAuth || !isAuthorized) {
     return (
@@ -690,7 +796,7 @@ export default function ManajemenDataProdiPage() {
             </button>
             <div>
               <h1 className="text-base sm:text-xl font-bold text-slate-900 tracking-tight">
-                Manajemen Data Prodi &amp; Akun Operator
+                Manajemen Data Fakultas &amp; Akun Operator
               </h1>
             </div>
           </div>
@@ -698,9 +804,9 @@ export default function ManajemenDataProdiPage() {
           <div className="flex items-center gap-2.5">
             <button
               type="button"
-              onClick={() => fetchAkunProdi(true)}
+              onClick={() => fetchAkunFakultas(true)}
               disabled={isLoadingTable}
-              title="Muat ulang daftar akun Prodi"
+              title="Muat ulang daftar akun Fakultas"
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs transition cursor-pointer disabled:opacity-50"
             >
               <RefreshCw
@@ -717,7 +823,7 @@ export default function ManajemenDataProdiPage() {
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0D47A1] hover:bg-[#1565C0] active:bg-blue-950 text-white text-xs sm:text-sm font-semibold shadow-sm shadow-blue-900/15 transition cursor-pointer"
             >
               <Plus className="w-4 h-4 text-[#FBC02D]" />
-              <span>Tambah Akun Prodi</span>
+              <span>Tambah Akun Fakultas</span>
             </button>
           </div>
         </header>
@@ -726,19 +832,19 @@ export default function ManajemenDataProdiPage() {
         <main className="p-5 sm:p-8 space-y-8 max-w-7xl w-full mx-auto flex-1">
           {/* 3 Kartu Statistik Ringkas */}
           <section
-            aria-label="Ringkasan Akun Operator Prodi"
+            aria-label="Ringkasan Akun Operator Fakultas"
             className="grid grid-cols-1 sm:grid-cols-3 gap-5"
           >
             <div className="bg-gradient-to-br from-[#1e5bb8] to-[#0D47A1] rounded-2xl border border-blue-400/25 p-5 shadow-md shadow-blue-900/10 flex items-center justify-between text-white">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-white/90">
-                  Total Akun Prodi
+                  Total Akun Fakultas
                 </p>
                 <p className="text-3xl font-bold text-white mt-1.5">
                   {stats.total}
                 </p>
                 <p className="text-xs text-white/80 mt-1">
-                  Operator Program Studi Terdaftar
+                  Operator Fakultas Terdaftar
                 </p>
               </div>
               <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-md border border-white/60 text-white flex items-center justify-center shrink-0">
@@ -781,21 +887,21 @@ export default function ManajemenDataProdiPage() {
             </div>
           </section>
 
-          {/* Tabel Utama Akun Otorisasi Operator Program Studi */}
+          {/* Tabel Utama Akun Otorisasi Operator Fakultas */}
           <section
-            aria-label="Tabel Akun Operator Program Studi"
+            aria-label="Tabel Akun Operator Fakultas"
             className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden"
           >
             {/* Banner Header Tabel & Kolom Pencarian */}
             <div className="p-6 bg-gradient-to-r from-[#0D47A1] via-[#1565C0] to-[#1e68c8] text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="space-y-1">
                 <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
-                  Daftar Akun Otorisasi Operator Program Studi
+                  Daftar Akun Otorisasi Operator Fakultas
                 </h2>
                 <p className="text-xs sm:text-sm text-blue-50/90 leading-relaxed">
                   Kelola kredensial login, reset sandi default (
                   <code className="font-mono text-[#FBC02D]">Unuha2026!</code>
-                  ), atau ubah status akses operator Prodi.
+                  ), atau ubah status akses operator Fakultas.
                 </p>
               </div>
 
@@ -803,10 +909,10 @@ export default function ManajemenDataProdiPage() {
                 <Search className="w-4 h-4 text-[#1565C0] pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="search"
-                  aria-label="Cari Prodi, Fakultas, atau Username"
+                  aria-label="Cari Fakultas atau Username"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Cari Prodi atau Username..."
+                  placeholder="Cari Fakultas atau Username..."
                   className="w-full rounded-xl border border-white/90 bg-white pl-9 pr-3.5 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-[#FBC02D]/80"
                 />
               </div>
@@ -817,7 +923,7 @@ export default function ManajemenDataProdiPage() {
               <div className="py-16 px-6 flex flex-col items-center justify-center gap-3 text-center">
                 <Loader2 className="w-7 h-7 animate-spin text-[#0D47A1]" />
                 <p className="text-xs sm:text-sm font-semibold text-slate-600">
-                  Memuat daftar akun operator Program Studi...
+                  Memuat daftar akun operator Fakultas...
                 </p>
               </div>
             ) : (
@@ -825,8 +931,10 @@ export default function ManajemenDataProdiPage() {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50/90 border-b border-slate-200/80 text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                      <th className="py-4 px-6 min-w-[240px]">Nama Prodi</th>
-                      <th className="py-4 px-5 min-w-[200px]">Fakultas</th>
+                      <th className="py-4 px-6 min-w-[240px]">Nama Fakultas</th>
+                      <th className="py-4 px-5 min-w-[200px]">
+                        Singkatan &amp; Unit
+                      </th>
                       <th className="py-4 px-5 min-w-[180px]">Username</th>
                       <th className="py-4 px-5 text-center min-w-[140px]">
                         Status Akses
@@ -845,26 +953,29 @@ export default function ManajemenDataProdiPage() {
                         >
                           {searchQuery.trim() ? (
                             <>
-                              Tidak ada data akun Program Studi yang cocok
-                              dengan kata kunci{" "}
+                              Tidak ada data akun Fakultas yang cocok dengan
+                              kata kunci{" "}
                               <strong className="text-slate-700">
                                 &ldquo;{sanitizePlainText(searchQuery)}&rdquo;
                               </strong>
                               .
                             </>
                           ) : (
-                            "Belum ada akun operator Program Studi yang terdaftar di database."
+                            "Belum ada akun operator Fakultas yang terdaftar di database."
                           )}
                         </td>
                       </tr>
                     ) : (
                       filteredAccounts.map((item) => {
-                        const prodiName = sanitizePlainText(
-                          item.prodi?.nama_prodi || `Prodi #${item.id_prodi}`
-                        );
                         const fakultasInfo = resolveFakultasLabel(
                           item,
-                          prodiOptions
+                          fakultasOptions
+                        );
+                        const fakultasName = sanitizePlainText(
+                          fakultasInfo.nama_fakultas ||
+                            (item.id_fakultas
+                              ? `Fakultas #${item.id_fakultas}`
+                              : "Fakultas Belum Ditautkan")
                         );
                         const safeUsername = sanitizePlainText(item.username);
                         const isRowBusy = processingRowId === item.id;
@@ -874,26 +985,28 @@ export default function ManajemenDataProdiPage() {
                             key={item.id}
                             className="hover:bg-slate-50/75 transition-colors"
                           >
-                            {/* Kolom 1: Nama Prodi */}
+                            {/* Kolom 1: Nama Fakultas */}
                             <td className="py-4 px-6">
                               <div className="font-bold text-slate-900">
-                                {prodiName}
+                                {fakultasName}
                               </div>
                               <div className="text-[11px] text-slate-500 mt-0.5">
-                                ID Prodi: #{item.id_prodi}
+                                {item.id_fakultas
+                                  ? `ID Fakultas: #${item.id_fakultas}`
+                                  : "ID Fakultas: -"}
                               </div>
                             </td>
 
-                            {/* Kolom 2: Fakultas */}
+                            {/* Kolom 2: Singkatan & Unit */}
                             <td className="py-4 px-5">
                               <div className="inline-flex items-center gap-2">
                                 <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-[#0D47A1] border border-blue-200/70">
                                   {sanitizePlainText(fakultasInfo.singkatan)}
                                 </span>
                                 <span className="text-slate-700 font-medium">
-                                  {sanitizePlainText(
-                                    fakultasInfo.nama_fakultas
-                                  )}
+                                  {fakultasInfo.prodiCount > 0
+                                    ? `${fakultasInfo.prodiCount} Program Studi`
+                                    : "Universitas Nurul Huda"}
                                 </span>
                               </div>
                             </td>
@@ -920,7 +1033,7 @@ export default function ManajemenDataProdiPage() {
                               )}
                             </td>
 
-                            {/* Kolom 5: Quick Actions (Edit, Reset Sandi, Suspend/Aktifkan Toggle) */}
+                            {/* Kolom 5: Quick Actions (Edit, Reset Sandi, Suspend/Aktifkan Toggle, Hapus) */}
                             <td className="py-4 px-6 text-right">
                               <div className="inline-flex items-center justify-end gap-2">
                                 {/* a. Edit */}
@@ -972,6 +1085,18 @@ export default function ManajemenDataProdiPage() {
                                     {item.is_active ? "Suspend" : "Aktifkan"}
                                   </span>
                                 </button>
+
+                                {/* d. Hapus Akun */}
+                                <button
+                                  type="button"
+                                  disabled={isRowBusy}
+                                  onClick={() => setDeleteAccountTarget(item)}
+                                  title="Hapus Akun Operator"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-red-200 bg-white hover:bg-red-50 text-red-600 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Hapus</span>
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -986,12 +1111,12 @@ export default function ManajemenDataProdiPage() {
         </main>
       </div>
 
-      {/* Modal Form 'Hybrid' (Tambah / Edit Akun Operator Prodi) */}
+      {/* Modal Form 'Hybrid' (Tambah / Edit Akun Operator Fakultas) */}
       {isModalOpen && (
         <div
           role="dialog"
           aria-modal="true"
-          aria-labelledby="modal-akun-prodi-title"
+          aria-labelledby="modal-akun-fakultas-title"
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm"
         >
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden">
@@ -1003,12 +1128,12 @@ export default function ManajemenDataProdiPage() {
                 </div>
                 <div>
                   <h3
-                    id="modal-akun-prodi-title"
+                    id="modal-akun-fakultas-title"
                     className="text-sm sm:text-base font-bold text-white"
                   >
                     {modalMode === "create"
-                      ? "Tambah Akun Operator Prodi"
-                      : "Edit Akun Operator Prodi"}
+                      ? "Tambah Akun Operator Fakultas"
+                      : "Edit Akun Operator Fakultas"}
                   </h3>
                   <p className="text-[11px] text-blue-100">
                     Sistem Hybrid Auto-fill Kredensial UNUHA
@@ -1045,48 +1170,51 @@ export default function ManajemenDataProdiPage() {
                 </div>
               )}
 
-              {/* 1. Elemen <select> Pilih Program Studi (Dinamis dari /api/prodi) */}
+              {/* 1. Elemen <select> Pilih Fakultas (Dinamis dari /api/fakultas) */}
               <div>
                 <label
-                  htmlFor="select-prodi-unuha"
+                  htmlFor="select-fakultas-unuha"
                   className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2"
                 >
-                  Program Studi (UNUHA)
+                  Fakultas (UNUHA)
                 </label>
                 <div className="relative">
                   <Building2 className="w-4 h-4 text-[#0D47A1] pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <select
-                    id="select-prodi-unuha"
-                    value={selectedProdiName}
-                    onChange={handleSelectProdiChange}
+                    id="select-fakultas-unuha"
+                    value={selectedFakultasName}
+                    onChange={handleSelectFakultasChange}
                     disabled={
                       modalMode === "edit" ||
                       isSubmittingForm ||
-                      (modalMode === "create" && prodiOptions.length === 0)
+                      (modalMode === "create" && fakultasOptions.length === 0)
                     }
                     className="w-full appearance-none rounded-xl border border-slate-300 bg-white pl-10 pr-10 py-2.5 text-xs sm:text-sm font-semibold text-slate-900 shadow-2xs focus:border-[#0D47A1] focus:outline-none focus:ring-2 focus:ring-[#0D47A1]/20 disabled:bg-slate-100 disabled:text-slate-500 cursor-pointer"
                   >
-                    {prodiOptions.length === 0 ? (
-                      <option value={selectedProdiName || ""}>
-                        {selectedProdiName ||
-                          "-- Belum ada data Program Studi di database --"}
+                    {fakultasOptions.length === 0 ? (
+                      <option value={selectedFakultasName || ""}>
+                        {selectedFakultasName ||
+                          "-- Belum ada data Fakultas di database --"}
                       </option>
                     ) : (
                       <>
                         {modalMode === "edit" &&
-                          selectedProdiName &&
-                          !prodiOptions.some(
-                            (p) => p.nama_prodi === selectedProdiName
+                          selectedFakultasName &&
+                          !fakultasOptions.some(
+                            (f) => f.nama_fakultas === selectedFakultasName
                           ) && (
-                            <option value={selectedProdiName}>
-                              {selectedProdiName}
+                            <option value={selectedFakultasName}>
+                              {selectedFakultasName}
                             </option>
                           )}
-                        {prodiOptions.map((prodi) => (
-                          <option key={prodi.id} value={prodi.nama_prodi}>
-                            {prodi.nama_prodi}
-                            {prodi.fakultas?.singkatan
-                              ? ` (${prodi.fakultas.singkatan})`
+                        {fakultasOptions.map((fakultas) => (
+                          <option
+                            key={fakultas.id}
+                            value={fakultas.nama_fakultas}
+                          >
+                            {fakultas.nama_fakultas}
+                            {fakultas.singkatan
+                              ? ` (${fakultas.singkatan})`
                               : ""}
                           </option>
                         ))}
@@ -1099,7 +1227,7 @@ export default function ManajemenDataProdiPage() {
                   <p className="mt-1.5 text-[11px] text-slate-500 flex items-center gap-1">
                     <Sparkles className="w-3.5 h-3.5 text-[#0D47A1] shrink-0" />
                     <span>
-                      Memilih Prodi akan mengisi otomatis kolom Username di
+                      Memilih Fakultas akan mengisi otomatis kolom Username di
                       bawah.
                     </span>
                   </p>
@@ -1109,13 +1237,13 @@ export default function ManajemenDataProdiPage() {
               {/* 2. Input Username (Terisi otomatis namun tetap bisa diedit manual oleh Admin) */}
               <div>
                 <label
-                  htmlFor="input-username-prodi"
+                  htmlFor="input-username-fakultas"
                   className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2"
                 >
                   Username Operator
                 </label>
                 <input
-                  id="input-username-prodi"
+                  id="input-username-fakultas"
                   type="text"
                   required
                   disabled={isSubmittingForm}
@@ -1124,13 +1252,13 @@ export default function ManajemenDataProdiPage() {
                     setUsernameInput(e.target.value);
                     if (formError) setFormError(null);
                   }}
-                  placeholder="Contoh: prodi_informatika"
+                  placeholder="Contoh: fakultas_sains_dan_teknologi"
                   className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs sm:text-sm font-mono font-semibold text-slate-900 placeholder:text-slate-400 focus:border-[#0D47A1] focus:outline-none focus:ring-2 focus:ring-[#0D47A1]/20"
                 />
                 <p className="mt-1.5 text-[11px] text-slate-500">
                   Format otomatis:{" "}
                   <code className="font-mono text-[#0D47A1] font-semibold">
-                    {generateAutoUsernameFromProdi(selectedProdiName)}
+                    {generateAutoUsernameFromFakultas(selectedFakultasName)}
                   </code>{" "}
                   (Dapat Anda sunting secara manual).
                 </p>
@@ -1139,7 +1267,7 @@ export default function ManajemenDataProdiPage() {
               {/* 3. Input Password dengan Placeholder Sandi Default (Unuha2026!) */}
               <div>
                 <label
-                  htmlFor="input-password-prodi"
+                  htmlFor="input-password-fakultas"
                   className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2"
                 >
                   Password{" "}
@@ -1150,7 +1278,7 @@ export default function ManajemenDataProdiPage() {
                 <div className="relative">
                   <Lock className="w-4 h-4 text-slate-400 pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
-                    id="input-password-prodi"
+                    id="input-password-fakultas"
                     type="password"
                     disabled={isSubmittingForm}
                     value={passwordInput}
@@ -1203,6 +1331,83 @@ export default function ManajemenDataProdiPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Konfirmasi Hapus Akun Operator Fakultas */}
+      {deleteAccountTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-100 p-6 space-y-5 animate-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-red-100/80 border border-red-200 text-red-600 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-900">
+                  Hapus Akun Operator Fakultas
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Apakah Anda yakin ingin menghapus akun operator Fakultas
+                  berikut dari sistem?
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  Username
+                </span>
+                <code className="text-xs font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
+                  {sanitizePlainText(deleteAccountTarget.username)}
+                </code>
+              </div>
+              <div className="text-xs text-slate-600 pt-1 border-t border-slate-200/60">
+                <span className="text-slate-400">Fakultas: </span>
+                <span className="font-semibold text-slate-800">
+                  {deleteAccountTarget.fakultas?.nama_fakultas ||
+                    "Fakultas Belum Ditautkan"}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/80 text-amber-800 text-xs flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+              <span>
+                Akun ini tidak akan dapat login lagi ke sistem SIPASTI setelah
+                dihapus.
+              </span>
+            </div>
+
+            <div className="pt-2 flex items-center justify-end gap-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setDeleteAccountTarget(null)}
+                disabled={isDeletingAccount}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs sm:text-sm font-semibold text-slate-700 transition disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteAccount}
+                disabled={isDeletingAccount}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs sm:text-sm font-semibold shadow-sm transition disabled:opacity-50"
+              >
+                {isDeletingAccount ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Menghapus...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Ya, Hapus Akun</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

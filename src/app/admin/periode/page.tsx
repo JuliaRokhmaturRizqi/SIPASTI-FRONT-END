@@ -9,6 +9,7 @@ import {
   Menu,
   Pencil,
   Plus,
+  RefreshCw,
   Sparkles,
   Trash2,
   X,
@@ -17,6 +18,7 @@ import apiClient from "@/lib/axios";
 import { clearAuthSession, getAuthSession, logoutSession } from "@/lib/auth";
 import { sanitizePlainText } from "@/lib/security";
 import { AuthUser } from "@/types/auth";
+import { PeriodeListResponse } from "@/types/dokumen";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import PeriodeFormModal, {
   PeriodeItem,
@@ -24,27 +26,11 @@ import PeriodeFormModal, {
 } from "@/components/admin/PeriodeFormModal";
 import PeriodeArchiveModal from "@/components/admin/PeriodeArchiveModal";
 
-/**
- * State Dummy Data Awal Periode Akademik:
- * 1 Aktif, 1 Nonaktif, dan 1 Diarsipkan sesuai spesifikasi simulasi UX.
- */
-const INITIAL_PERIODE_DATA: PeriodeItem[] = [
-  {
-    id: 1,
-    namaPeriode: "2026/2027 Ganjil",
-    status: "Aktif",
-  },
-  {
-    id: 2,
-    namaPeriode: "2026/2027 Genap",
-    status: "Nonaktif",
-  },
-  {
-    id: 3,
-    namaPeriode: "2025/2026 Genap",
-    status: "Diarsipkan",
-  },
-];
+interface PeriodeGridItem extends PeriodeItem {
+  status_pelaporan?: string;
+  is_default?: boolean;
+  dokumen_count?: number;
+}
 
 interface ToastNotification {
   id: number;
@@ -63,9 +49,10 @@ export default function ManajemenPeriodePage() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // State Daftar Periode Akademik (Dummy + Client-side Interactive State)
-  const [periodeList, setPeriodeList] =
-    useState<PeriodeItem[]>(INITIAL_PERIODE_DATA);
+  // State Daftar Periode Akademik Dinamis dari Server
+  const [periodeList, setPeriodeList] = useState<PeriodeGridItem[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
 
   // State Modal Form (Tambah / Edit)
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -108,6 +95,47 @@ export default function ManajemenPeriodePage() {
   }, [router]);
 
   /**
+   * Mengambil data seluruh periode akademik secara dinamis dari API backend
+   */
+  const fetchPeriodeList = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const res = await apiClient.get<PeriodeListResponse>("/api/periode");
+      const records = res.data?.data || [];
+
+      const mapped: PeriodeGridItem[] = records.map((p: any) => {
+        const isActive = Boolean(p.status_aktif === true || p.status_aktif === 1);
+        let status: PeriodeStatus = "Nonaktif";
+        if (isActive) {
+          status = "Aktif";
+        } else if (p.status_pelaporan === "Diarsipkan") {
+          status = "Diarsipkan";
+        }
+
+        return {
+          id: p.id,
+          namaPeriode: p.nama_periode,
+          status,
+          status_pelaporan: p.status_pelaporan,
+          is_default: Boolean(p.is_default),
+          dokumen_count: p.dokumen_pelaporan_count || 0,
+        };
+      });
+
+      setPeriodeList(mapped);
+    } catch (err) {
+      const axiosErr = err as AxiosError<{ message?: string }>;
+      pushToast(
+        "info",
+        "Gagal Memuat Periode",
+        axiosErr.response?.data?.message || "Gagal mengambil daftar periode dari server."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [pushToast]);
+
+  /**
    * Route Protection: Pastikan hanya dapat diakses oleh role === 'admin'
    */
   useEffect(() => {
@@ -125,14 +153,7 @@ export default function ManajemenPeriodePage() {
       }
 
       try {
-        const meRes = await apiClient.get<{ status: string; data: AuthUser }>(
-          "/me",
-          {
-            headers: {
-              Authorization: `Bearer ${session.token}`,
-            },
-          }
-        );
+        const meRes = await apiClient.get<{ status: string; data: AuthUser }>("/api/me");
 
         const verifiedUser = meRes.data?.data;
         if (!verifiedUser || verifiedUser.role !== "admin") {
@@ -145,6 +166,8 @@ export default function ManajemenPeriodePage() {
           setIsAuthorized(true);
           setIsCheckingAuth(false);
         }
+
+        await fetchPeriodeList();
       } catch (err) {
         const axiosErr = err as AxiosError;
         const status = axiosErr.response?.status;
@@ -159,7 +182,7 @@ export default function ManajemenPeriodePage() {
     return () => {
       isMounted = false;
     };
-  }, [handleUnauthorizedExit]);
+  }, [handleUnauthorizedExit, fetchPeriodeList]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -198,8 +221,7 @@ export default function ManajemenPeriodePage() {
   };
 
   /**
-   * Handler Simpan Periode (Tambah / Edit)
-   * Disiapkan untuk integrasi API (POST / PATCH /api/admin/periode-akademik)
+   * Handler Simpan Periode (Tambah / Edit) ke Backend API
    */
   const handleSave = async (payload: {
     id?: number;
@@ -208,93 +230,115 @@ export default function ManajemenPeriodePage() {
   }) => {
     setIsSaving(true);
     try {
-      // TODO: Integrasi API Backend nantinya:
-      // await apiClient.post("/admin/periode-akademik", {
-      //   nama_periode: payload.namaPeriode,
-      //   status_aktif: payload.isActiveNow,
-      // });
-
       const cleanNama = sanitizePlainText(payload.namaPeriode);
 
-      setPeriodeList((prevList) => {
-        // Jika toggle 'Jadikan Periode Aktif Sekarang' dinyalakan,
-        // otomatis nonaktifkan periode lain yang sedang berstatus 'Aktif'
-        const updatedBase = prevList.map((item) => {
-          if (payload.isActiveNow && item.status === "Aktif") {
-            return { ...item, status: "Nonaktif" as PeriodeStatus };
-          }
-          return item;
+      if (formMode === "edit" && payload.id !== undefined) {
+        await apiClient.put(`/api/periode/${payload.id}`, {
+          nama_periode: cleanNama,
+          status_aktif: payload.isActiveNow,
         });
 
-        if (formMode === "edit" && payload.id !== undefined) {
-          return updatedBase.map((item) => {
-            if (item.id !== payload.id) return item;
-            const nextStatus: PeriodeStatus = payload.isActiveNow
-              ? "Aktif"
-              : item.status === "Aktif"
-              ? "Nonaktif"
-              : item.status;
+        pushToast(
+          "success",
+          "Periode Diperbarui",
+          payload.isActiveNow
+            ? `Periode "${cleanNama}" berhasil disimpan dan berstatus Buka/Aktif.`
+            : `Periode "${cleanNama}" berhasil disimpan dan berstatus Tutup/Nonaktif.`
+        );
+      } else {
+        await apiClient.post("/api/periode", {
+          nama_periode: cleanNama,
+          status_aktif: payload.isActiveNow,
+        });
 
-            return {
-              ...item,
-              namaPeriode: cleanNama,
-              status: nextStatus,
-            };
-          });
-        }
-
-        // Mode Create (Tambah Periode Baru)
-        const nextId =
-          updatedBase.length > 0
-            ? Math.max(...updatedBase.map((p) => p.id)) + 1
-            : 1;
-
-        const newItem: PeriodeItem = {
-          id: nextId,
-          namaPeriode: cleanNama,
-          status: payload.isActiveNow ? "Aktif" : "Nonaktif",
-        };
-
-        return [newItem, ...updatedBase];
-      });
+        pushToast(
+          "success",
+          "Periode Ditambahkan",
+          payload.isActiveNow
+            ? `Periode "${cleanNama}" berhasil dibuat dan berstatus Buka/Aktif.`
+            : `Periode "${cleanNama}" berhasil dibuat dan berstatus Tutup/Nonaktif.`
+        );
+      }
 
       setIsFormModalOpen(false);
-      pushToast(
-        "success",
-        formMode === "edit" ? "Periode Diperbarui" : "Periode Ditambahkan",
-        payload.isActiveNow
-          ? `Periode "${cleanNama}" disimpan sebagai Periode Aktif.`
-          : `Periode "${cleanNama}" berhasil disimpan.`
-      );
+      await fetchPeriodeList();
+    } catch (err) {
+      const axiosErr = err as AxiosError<{ message?: string; errors?: Record<string, string[]> }>;
+      const msg = axiosErr.response?.data?.message || "Gagal menyimpan data periode akademik.";
+      pushToast("info", "Terjadi Kesalahan", msg);
     } finally {
       setIsSaving(false);
     }
   };
 
   /**
-   * Handler Konfirmasi Arsip Periode
-   * Disiapkan untuk integrasi API (PATCH /api/admin/periode-akademik/{id}/archive)
+   * Toggle Cepat Status Aktif/Buka Langsung dari Baris Tabel
+   */
+  const handleToggleActive = async (periode: PeriodeItem) => {
+    setTogglingId(periode.id);
+    try {
+      const res = await apiClient.patch<{ status: string; message: string; data: any }>(
+        `/api/periode/${periode.id}/toggle-active`
+      );
+
+      const isNowActive = res.data?.data?.status_aktif;
+      pushToast(
+        "success",
+        isNowActive ? "Periode Diaktifkan" : "Periode Dinonaktifkan",
+        `Periode "${periode.namaPeriode}" berhasil ${
+          isNowActive ? "diaktifkan (pelaporan dibuka)" : "dinonaktifkan (pelaporan ditutup)"
+        }.`
+      );
+
+      await fetchPeriodeList();
+    } catch (err) {
+      const axiosErr = err as AxiosError<{ message?: string }>;
+      pushToast(
+        "info",
+        "Gagal Mengubah Status",
+        axiosErr.response?.data?.message || "Gagal mengubah status aktif periode."
+      );
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
+  /**
+   * Handler Konfirmasi Hapus / Arsip Periode
    */
   const handleArchive = async (target: PeriodeItem) => {
     setIsArchiving(true);
     try {
-      // TODO: Integrasi API Backend nantinya:
-      // await apiClient.patch(`/admin/periode-akademik/${target.id}/archive`);
+      const res = await apiClient.delete<{ status: string; message: string; data?: any }>(
+        `/api/periode/${target.id}`
+      );
 
-      setPeriodeList((prevList) =>
-        prevList.map((item) =>
-          item.id === target.id
-            ? { ...item, status: "Diarsipkan" as PeriodeStatus }
-            : item
-        )
+      pushToast(
+        "info",
+        "Periode Dihapus",
+        res.data?.message || `Periode "${target.namaPeriode}" berhasil dihapus secara permanen.`
       );
 
       setPeriodeToArchive(null);
-      pushToast(
-        "info",
-        "Periode Diarsipkan",
-        `Periode "${target.namaPeriode}" telah dipindahkan ke status Diarsipkan demi menjaga integritas data pelaporan.`
-      );
+      await fetchPeriodeList();
+    } catch (err) {
+      const axiosErr = err as AxiosError<{ status?: string; message?: string; data?: any }>;
+      if (axiosErr.response?.status === 400) {
+        // Backend mendeteksi relasi dokumen, status diubah menjadi Tutup
+        pushToast(
+          "info",
+          "Proteksi Integritas Data",
+          axiosErr.response.data?.message || `Periode memiliki dokumen tersimpan, status diubah menjadi Tutup.`
+        );
+        setPeriodeToArchive(null);
+        await fetchPeriodeList();
+      } else {
+        pushToast(
+          "info",
+          "Gagal Menghapus Periode",
+          axiosErr.response?.data?.message || "Terjadi kesalahan saat menghapus periode."
+        );
+      }
     } finally {
       setIsArchiving(false);
     }
@@ -418,14 +462,31 @@ export default function ManajemenPeriodePage() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenCreateModal}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0D47A1] hover:bg-[#1565C0] active:bg-blue-900 text-white text-xs sm:text-sm font-semibold shadow-sm shadow-blue-900/15 transition cursor-pointer"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Tambah Periode</span>
-          </button>
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => fetchPeriodeList()}
+              disabled={isLoading}
+              title="Muat ulang daftar periode"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs transition cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`w-3.5 h-3.5 text-[#0D47A1] ${
+                  isLoading ? "animate-spin" : ""
+                }`}
+              />
+              <span className="hidden sm:inline">Sinkronkan</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleOpenCreateModal}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0D47A1] hover:bg-[#1565C0] active:bg-blue-900 text-white text-xs sm:text-sm font-semibold shadow-sm shadow-blue-900/15 transition cursor-pointer"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>Tambah Periode</span>
+            </button>
+          </div>
         </header>
 
         {/* Konten Utama */}
@@ -443,7 +504,7 @@ export default function ManajemenPeriodePage() {
                 </h2>
                 <p className="text-xs text-blue-50/90 mt-0.5">
                   Kelola status masa aktif pelaporan dokumen administrasi
-                  Program Studi.
+                  Program Studi (Mendukung Multi-Periode Aktif).
                 </p>
               </div>
               <span className="inline-flex items-center self-start sm:self-center px-3 py-1 rounded-full text-xs font-semibold bg-white/15 backdrop-blur-xs border border-white/30 text-white">
@@ -458,57 +519,109 @@ export default function ManajemenPeriodePage() {
                   <tr className="bg-slate-50/90 border-b border-slate-200/80 text-[11px] font-bold uppercase tracking-wider text-slate-600">
                     <th className="py-3.5 px-6 w-20">No</th>
                     <th className="py-3.5 px-6">Nama Periode</th>
-                    <th className="py-3.5 px-6">Status</th>
+                    <th className="py-3.5 px-6">Status & Aktivasi</th>
                     <th className="py-3.5 px-6 text-right w-36">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200/70 text-xs sm:text-sm">
-                  {periodeList.map((periode, index) => {
-                    const safeNama = sanitizePlainText(periode.namaPeriode);
-                    return (
-                      <tr
-                        key={periode.id}
-                        className="hover:bg-slate-50/70 transition-colors"
-                      >
-                        <td className="py-4 px-6 font-semibold text-slate-500">
-                          {index + 1}
-                        </td>
-                        <td className="py-4 px-6">
-                          <span className="font-bold text-slate-900">
-                            {safeNama}
-                          </span>
-                        </td>
-                        <td className="py-4 px-6">
-                          {renderStatusBadge(periode.status)}
-                        </td>
-                        <td className="py-4 px-6 text-right">
-                          <div className="inline-flex items-center justify-end gap-2">
-                            {/* Tombol Ikon Edit (Warna Biru) */}
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEditModal(periode)}
-                              title={`Edit ${safeNama}`}
-                              aria-label={`Edit periode ${safeNama}`}
-                              className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-200/80 transition cursor-pointer"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={4} className="py-12 text-center text-slate-500">
+                        <div className="inline-flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin text-[#0D47A1]" />
+                          <span>Memuat daftar periode akademik...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : periodeList.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="py-12 text-center text-slate-500">
+                        Belum ada periode akademik. Silakan klik tombol &apos;Tambah Periode&apos; di atas.
+                      </td>
+                    </tr>
+                  ) : (
+                    periodeList.map((periode, index) => {
+                      const safeNama = sanitizePlainText(periode.namaPeriode);
+                      const isToggling = togglingId === periode.id;
+                      return (
+                        <tr
+                          key={periode.id}
+                          className="hover:bg-slate-50/70 transition-colors"
+                        >
+                          <td className="py-4 px-6 font-semibold text-slate-500">
+                            {index + 1}
+                          </td>
+                          <td className="py-4 px-6">
+                            <span className="font-bold text-slate-900">
+                              {safeNama}
+                            </span>
+                            {periode.is_default && (
+                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-[#0D47A1]">
+                                Utama
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-4 px-6">
+                            <div className="flex items-center gap-3">
+                              {renderStatusBadge(periode.status)}
 
-                            {/* Tombol Ikon Hapus/Arsip (Warna Merah) */}
-                            <button
-                              type="button"
-                              onClick={() => handleOpenArchiveModal(periode)}
-                              title={`Hapus atau Arsipkan ${safeNama}`}
-                              aria-label={`Hapus atau Arsipkan periode ${safeNama}`}
-                              className="p-2 rounded-lg text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200/80 transition cursor-pointer"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                              {/* Toggle Cepat Aktif/Nonaktif */}
+                              <button
+                                type="button"
+                                onClick={() => handleToggleActive(periode)}
+                                disabled={isToggling}
+                                title={
+                                  periode.status === "Aktif"
+                                    ? "Klik untuk menonaktifkan/tutup periode"
+                                    : "Klik untuk mengaktifkan/buka periode"
+                                }
+                                aria-label={`Ubah status ${safeNama}`}
+                                className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#0D47A1]/40 disabled:opacity-50 ${
+                                  periode.status === "Aktif"
+                                    ? "bg-emerald-600"
+                                    : "bg-slate-300"
+                                }`}
+                              >
+                                <span
+                                  aria-hidden="true"
+                                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                                    periode.status === "Aktif"
+                                      ? "translate-x-5"
+                                      : "translate-x-0"
+                                  }`}
+                                />
+                              </button>
+                            </div>
+                          </td>
+                          <td className="py-4 px-6 text-right">
+                            <div className="inline-flex items-center justify-end gap-2">
+                              {/* Tombol Ikon Edit (Warna Biru) */}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditModal(periode)}
+                                title={`Edit ${safeNama}`}
+                                aria-label={`Edit periode ${safeNama}`}
+                                className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-200/80 transition cursor-pointer"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+
+                              {/* Tombol Ikon Hapus/Arsip (Warna Merah) */}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenArchiveModal(periode)}
+                                title={`Hapus atau Arsipkan ${safeNama}`}
+                                aria-label={`Hapus atau Arsipkan periode ${safeNama}`}
+                                className="p-2 rounded-lg text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200/80 transition cursor-pointer"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>

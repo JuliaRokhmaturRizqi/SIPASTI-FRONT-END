@@ -36,8 +36,8 @@ export default function AdminSidebar({
 
   const isDashboardActive = pathname === "/admin/dashboard";
   const isPeriodeActive = pathname.startsWith("/admin/periode");
-  const isProdiActive =
-    pathname.startsWith("/admin/data-prodi") ||
+  const isFakultasActive =
+    pathname.startsWith("/admin/data-fakultas") ||
     pathname.startsWith("/admin/prodi");
 
   return (
@@ -149,22 +149,22 @@ export default function AdminSidebar({
             </Link>
             {/* ---> AKHIR TAMBAHAN BARU <--- */}
 
-            {/* Menu: Data Prodi (Akun) */}
+            {/* Menu: Data Akun Fakultas */}
             <Link
-              href="/admin/data-prodi"
+              href="/admin/data-fakultas"
               onClick={onCloseMobile}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition ${
-                isProdiActive
+                isFakultasActive
                   ? "bg-[#0D47A1] text-white shadow-md shadow-blue-950/50 border border-white/15"
                   : "text-slate-300 hover:bg-white/5 hover:text-white"
               }`}
             >
               <GraduationCap
                 className={`w-4 h-4 ${
-                  isProdiActive ? "text-[#FBC02D]" : "text-slate-400"
+                  isFakultasActive ? "text-[#FBC02D]" : "text-slate-400"
                 }`}
               />
-              <span>Data Prodi</span>
+              <span>Data Akun Fakultas</span>
             </Link>
             
           </nav>

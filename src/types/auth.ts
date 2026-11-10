@@ -1,16 +1,43 @@
-export type UserRole = "admin" | "user";
+export type UserRole = "admin" | "user" | "biro" | "pusat" | "lab";
 
 export interface ProdiInfo {
   id: number;
+  id_fakultas?: number;
   nama_prodi: string;
+  periode_mulai_aktif?: string | null;
+}
+
+export interface FakultasInfo {
+  id: number;
+  nama_fakultas: string;
+  singkatan?: string;
+  prodi?: ProdiInfo[];
+}
+
+export interface UnitKerjaInfo {
+  id: number;
+  nama_unit: string;
+  kategori_unit: string;
 }
 
 export interface AuthUser {
   id: number;
   username: string;
   role: UserRole;
-  id_prodi: number | null;
-  prodi?: ProdiInfo | null;
+  id_fakultas: number | null;
+  id_unit_kerja?: number | null;
+  is_active?: boolean;
+  fakultas?: {
+    id: number;
+    nama_fakultas: string;
+    singkatan?: string;
+    prodi?: ProdiInfo[];
+  } | null;
+  unit_kerja?: {
+    id: number;
+    nama_unit: string;
+    kategori_unit: string;
+  } | null;
 }
 
 export interface LoginSuccessResponse {

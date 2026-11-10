@@ -18,7 +18,6 @@ import {
   XCircle,
 } from "lucide-react";
 import apiClient from "@/lib/axios";
-import { getAuthSession } from "@/lib/auth";
 import {
   formatFileSize,
   MAX_LAMPIRAN_PDF_SIZE_BYTES,
@@ -46,9 +45,11 @@ export interface QueuedLampiranItem {
   errorMessage?: string;
 }
 
-interface ProdiUploadModalProps {
+export interface FakultasUploadModalProps {
   isOpen: boolean;
   targetTask: TaskCardItem | null;
+  targetProdiId: string | number;
+  prodiLabel?: string;
   selectedPeriode: string;
   periodeLabel: string;
   onClose: () => void;
@@ -58,15 +59,17 @@ interface ProdiUploadModalProps {
   onLampiranDeleted?: () => Promise<void> | void;
 }
 
-export default function ProdiUploadModal({
+export default function FakultasUploadModal({
   isOpen,
   targetTask,
+  targetProdiId,
+  prodiLabel,
   selectedPeriode,
   periodeLabel,
   onClose,
   onUploadSuccess,
   onLampiranDeleted,
-}: ProdiUploadModalProps) {
+}: FakultasUploadModalProps) {
   // State File Utama (Surat Pernyataan)
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [inlineError, setInlineError] = useState<string | null>(null);
@@ -109,6 +112,7 @@ export default function ProdiUploadModal({
   const isTahapYudisium = tahapAktif === 4;
   const safeJudul = sanitizePlainText(targetTask.judul);
   const safePeriode = sanitizePlainText(periodeLabel);
+  const safeProdiLabel = prodiLabel ? sanitizePlainText(prodiLabel) : "";
 
   /**
    * 1. Validasi saat memilih file utama (Surat Pernyataan - Maks 2MB, Wajib PDF)
@@ -276,8 +280,7 @@ export default function ProdiUploadModal({
 
   /**
    * Logika Upload Sekuensial (Satu per Satu):
-   * a. Pertama: Upload file Surat Pernyataan ke POST /api/dokumen/upload dan ambil id dokumen dari response
-   *    (Atau jika dokumen sudah ada saat Revisi/Review dan user hanya menambah lampiran baru, gunakan id dokumen yang ada).
+   * a. Pertama: Upload file Surat Pernyataan ke POST /api/dokumen/upload dengan id_prodi dari targetProdiId
    * b. Kedua: Looping array lampiranFiles dan upload satu per satu ke POST /api/dokumen/{id}/lampiran
    *    dengan indikator progress persentase per file.
    * c. Jika ada file lampiran yang gagal diunggah, jangan hentikan looping, tapi berikan badge 'Gagal' merah pada file tersebut.
@@ -287,6 +290,13 @@ export default function ProdiUploadModal({
     if (isUploading) return;
 
     setInlineError(null);
+
+    if (!targetProdiId) {
+      const msg = "Silakan pilih Program Studi terlebih dahulu.";
+      setInlineError(msg);
+      toast.error(msg);
+      return;
+    }
 
     const mainFile = selectedFile || fileInputRef.current?.files?.[0] || null;
     const pendingLampiran = lampiranFiles.filter(
@@ -336,13 +346,9 @@ export default function ProdiUploadModal({
         const formData = new FormData();
         formData.append("file", mainFile);
         formData.append("id_periode", String(selectedPeriode));
+        formData.append("id_prodi", targetProdiId.toString());
         formData.append("tahap_dokumen", String(tahapAktif));
         formData.append("tahap", String(tahapAktif));
-
-        const sessionUser = getAuthSession().user;
-        if (sessionUser?.id_prodi) {
-          formData.append("id_prodi", String(sessionUser.id_prodi));
-        }
 
         const response = await apiClient.post<DokumenUploadResponse>(
           "/api/dokumen/upload",
@@ -472,6 +478,7 @@ export default function ProdiUploadModal({
       const backendErrorMsg =
         axiosErr.response?.data?.errors?.dokumen?.[0] ||
         axiosErr.response?.data?.errors?.file?.[0] ||
+        axiosErr.response?.data?.errors?.id_prodi?.[0] ||
         axiosErr.response?.data?.errors?.id_periode?.[0] ||
         axiosErr.response?.data?.errors?.tahap_dokumen?.[0] ||
         axiosErr.response?.data?.message ||
@@ -489,6 +496,7 @@ export default function ProdiUploadModal({
 
   const canSubmit =
     !isUploading &&
+    Boolean(targetProdiId) &&
     (Boolean(selectedFile) ||
       (isTahapYudisium &&
         Boolean(targetTask.id) &&
@@ -498,7 +506,7 @@ export default function ProdiUploadModal({
     <div
       role="dialog"
       aria-modal="true"
-      aria-labelledby="prodi-upload-modal-title"
+      aria-labelledby="fakultas-upload-modal-title"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm"
     >
       <div
@@ -514,7 +522,7 @@ export default function ProdiUploadModal({
             </div>
             <div>
               <h3
-                id="prodi-upload-modal-title"
+                id="fakultas-upload-modal-title"
                 className="text-sm sm:text-base font-bold text-white"
               >
                 {isTahapYudisium
@@ -522,6 +530,7 @@ export default function ProdiUploadModal({
                   : "Upload Dokumen PDF"}
               </h3>
               <p className="text-[11px] text-blue-100">
+                {safeProdiLabel ? `${safeProdiLabel} \u2022 ` : ""}
                 {safeJudul} &bull; Periode {safePeriode}
               </p>
             </div>
@@ -589,7 +598,7 @@ export default function ProdiUploadModal({
           {/* BAGIAN 1 (ATAS): Input File Tunggal untuk Surat Pernyataan */}
           <div>
             <label
-              htmlFor="prodi-pdf-input"
+              htmlFor="fakultas-pdf-input"
               className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2"
             >
               1. Berkas Utama: Surat Pernyataan (.PDF &bull; Maks 2MB)
@@ -601,7 +610,7 @@ export default function ProdiUploadModal({
             </label>
 
             <label
-              htmlFor="prodi-pdf-input"
+              htmlFor="fakultas-pdf-input"
               className={`flex flex-col items-center justify-center w-full rounded-xl border-2 border-dashed p-5 text-center transition cursor-pointer ${
                 selectedFile
                   ? "border-emerald-400 bg-emerald-50/40"
@@ -643,7 +652,7 @@ export default function ProdiUploadModal({
 
               <input
                 ref={fileInputRef}
-                id="prodi-pdf-input"
+                id="fakultas-pdf-input"
                 name="file"
                 type="file"
                 accept="application/pdf,.pdf"
@@ -715,7 +724,7 @@ export default function ProdiUploadModal({
               {/* Area Drag-and-Drop Multiple Attachments */}
               <div>
                 <label
-                  htmlFor="prodi-lampiran-dropzone"
+                  htmlFor="fakultas-lampiran-dropzone"
                   className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2"
                 >
                   2. Lampiran Ijazah / Transkrip (Multiple PDF &bull; Maks 5MB /
@@ -762,7 +771,7 @@ export default function ProdiUploadModal({
 
                   <input
                     ref={lampiranInputRef}
-                    id="prodi-lampiran-dropzone"
+                    id="fakultas-lampiran-dropzone"
                     type="file"
                     accept="application/pdf,.pdf"
                     multiple

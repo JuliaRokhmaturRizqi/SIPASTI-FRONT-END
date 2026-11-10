@@ -58,6 +58,7 @@ export interface ProdiPeriodeOption {
 export interface PeriodeApiRecord {
   id: number;
   nama_periode: string;
+  status_aktif?: boolean | number;
   status_pelaporan: "Buka" | "Tutup";
   is_default: boolean;
   dokumen_pelaporan_count?: number;
@@ -98,6 +99,7 @@ export interface AdminMatrixCell {
 export interface AdminProdiRow {
   id_prodi: number;
   nama_prodi: string;
+  singkatan_fakultas?: string;
   tahapan: Record<TahapDokumenNumber, AdminMatrixCell>;
 }
 

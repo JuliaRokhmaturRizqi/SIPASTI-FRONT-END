@@ -43,32 +43,11 @@ import {
 } from "@/types/dokumen";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 
-/**
- * Opsi Periode Default (Digunakan saat inisialisasi atau fallback)
- */
 interface AdminPeriodeOption {
   id: string;
   label: string;
   nama_periode: string;
 }
-
-const DEFAULT_PERIODE_OPTIONS: AdminPeriodeOption[] = [
-  {
-    id: "1",
-    label: "2026/2027 Ganjil (Aktif)",
-    nama_periode: "2026/2027 Ganjil",
-  },
-  {
-    id: "2",
-    label: "2026/2027 Genap",
-    nama_periode: "2026/2027 Genap",
-  },
-  {
-    id: "3",
-    label: "2025/2026 Genap",
-    nama_periode: "2025/2026 Genap",
-  },
-];
 
 /**
  * Definisi 4 Kolom Tahapan Pelaporan
@@ -85,23 +64,54 @@ const TAHAP_COLUMNS: Array<{
 ];
 
 /**
- * Interface Akun Operator Prodi dari API GET /api/akun-prodi
+ * Interface Master Program Studi dari API GET /api/prodi
  */
-interface AkunProdiMatrixRecord {
+interface ProdiMasterMatrixRecord {
   id: number;
-  username: string;
-  role: string;
-  id_prodi: number;
-  is_active?: boolean;
-  prodi?: {
+  id_fakultas: number;
+  nama_prodi: string;
+  periode_mulai_aktif?: string | null;
+  fakultas?: {
     id: number;
-    nama_prodi: string;
+    singkatan?: string | null;
+    nama_fakultas: string;
   } | null;
 }
 
-interface AkunProdiMatrixResponse {
+interface ProdiMasterMatrixResponse {
   status: string;
-  data?: AkunProdiMatrixRecord[];
+  data?: ProdiMasterMatrixRecord[];
+}
+
+/**
+ * Interface Akun Operator Fakultas dari API GET /api/akun-fakultas atau GET /api/fakultas/akun
+ * (Juga mendukung struktur GET /api/fakultas dengan relasi users)
+ */
+interface FakultasAccountMatrixRecord {
+  id: number;
+  username?: string;
+  role?: string;
+  id_fakultas?: number | null;
+  is_active?: boolean | number;
+  singkatan?: string | null;
+  nama_fakultas?: string;
+  fakultas?: {
+    id: number;
+    singkatan?: string | null;
+    nama_fakultas: string;
+  } | null;
+  users?: Array<{
+    id: number;
+    username: string;
+    role?: string;
+    id_fakultas?: number | null;
+    is_active?: boolean | number;
+  }>;
+}
+
+interface FakultasAccountMatrixResponse {
+  status: string;
+  data?: FakultasAccountMatrixRecord[];
 }
 
 /**
@@ -110,6 +120,7 @@ interface AkunProdiMatrixResponse {
 function createProdiRow(
   idProdi: number,
   namaProdi: string,
+  singkatanFakultas = "",
   statuses: [DokumenStatus, DokumenStatus, DokumenStatus, DokumenStatus] = [
     "Belum Unggah",
     "Belum Unggah",
@@ -132,6 +143,7 @@ function createProdiRow(
   return {
     id_prodi: idProdi,
     nama_prodi: namaProdi,
+    singkatan_fakultas: singkatanFakultas,
     tahapan: {
       1: buildCell(1, statuses[0]),
       2: buildCell(2, statuses[1]),
@@ -142,26 +154,85 @@ function createProdiRow(
 }
 
 /**
- * Membangun kerangka baris (rows) murni dari hasil fetch GET /api/akun-prodi,
+ * Membangun kerangka baris (rows) dari daftar Master Prodi murni (prodiList),
+ * menyaring hanya Prodi yang Fakultasnya sudah memiliki akun operator aktif (fakultasWithAccounts),
  * lalu menimpa statusnya dengan data riil dari GET /api/dokumen?id_periode={selectedPeriode}
  */
 function buildDynamicMatrixFromApi(
-  akunRecords: AkunProdiMatrixRecord[],
+  prodiList: ProdiMasterMatrixRecord[],
+  fakultasWithAccounts: FakultasAccountMatrixRecord[],
   dokumenRecords: DokumenApiRecord[]
 ): AdminProdiRow[] {
-  if (!akunRecords || akunRecords.length === 0) {
+  if (
+    !prodiList ||
+    prodiList.length === 0 ||
+    !fakultasWithAccounts ||
+    fakultasWithAccounts.length === 0
+  ) {
     return [];
   }
 
-  // Bangun kerangka baris unik per id_prodi murni dari daftar akun operator Prodi di database
+  // Ambil daftar ID Fakultas yang memiliki akun operator aktif
+  const activeFakultasIds = new Set<number>();
+  const fakultasSingkatanMap = new Map<number, string>();
+
+  fakultasWithAccounts.forEach((item) => {
+    // Bentuk 1: Record dari /api/akun-fakultas atau /api/fakultas/akun (Objek User dengan id_fakultas)
+    if (item.id_fakultas !== undefined && item.id_fakultas !== null) {
+      const isActive = item.is_active === undefined ? true : Boolean(item.is_active);
+      const idFak = Number(item.id_fakultas);
+      if (isActive && idFak > 0) {
+        activeFakultasIds.add(idFak);
+        if (item.fakultas?.singkatan) {
+          fakultasSingkatanMap.set(idFak, item.fakultas.singkatan.trim());
+        }
+      }
+      return;
+    }
+
+    // Bentuk 2: Record dari /api/fakultas yang memuat relasi users
+    if (Array.isArray(item.users) && item.users.length > 0) {
+      const hasActiveOperator = item.users.some((u) =>
+        u.is_active === undefined ? true : Boolean(u.is_active)
+      );
+      const idFak = Number(item.id);
+      if (hasActiveOperator && idFak > 0) {
+        activeFakultasIds.add(idFak);
+        if (item.singkatan) {
+          fakultasSingkatanMap.set(idFak, item.singkatan.trim());
+        }
+      }
+    }
+  });
+
+  if (activeFakultasIds.size === 0) {
+    return [];
+  }
+
+  // Filter prodiList: Hanya Prodi yang id_fakultas-nya ada di activeFakultasIds
+  const filteredProdi = prodiList.filter((prodi) => {
+    const idFakultas = Number(prodi.id_fakultas || prodi.fakultas?.id);
+    return idFakultas > 0 && activeFakultasIds.has(idFakultas);
+  });
+
+  // Bangun kerangka baris unik per id_prodi beserta singkatan_fakultas
   const uniqueProdiMap = new Map<number, AdminProdiRow>();
-  akunRecords.forEach((akun) => {
-    const idProdi = Number(akun.id_prodi || akun.prodi?.id);
+  filteredProdi.forEach((prodi) => {
+    const idProdi = Number(prodi.id);
     if (!idProdi || uniqueProdiMap.has(idProdi)) return;
 
+    const idFakultas = Number(prodi.id_fakultas || prodi.fakultas?.id);
     const namaProdi =
-      akun.prodi?.nama_prodi?.trim() || `Program Studi #${idProdi}`;
-    uniqueProdiMap.set(idProdi, createProdiRow(idProdi, namaProdi));
+      prodi.nama_prodi?.trim() || `Program Studi #${idProdi}`;
+    const singkatanFakultas =
+      prodi.fakultas?.singkatan?.trim() ||
+      fakultasSingkatanMap.get(idFakultas) ||
+      "";
+
+    uniqueProdiMap.set(
+      idProdi,
+      createProdiRow(idProdi, namaProdi, singkatanFakultas)
+    );
   });
 
   const baseRows = Array.from(uniqueProdiMap.values());
@@ -227,12 +298,8 @@ export default function AdminDashboardPage() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // State Dropdown Periode & Data Matriks Dinamis (Murni dari Database)
-  const [periodeOptions, setPeriodeOptions] = useState<AdminPeriodeOption[]>(
-    DEFAULT_PERIODE_OPTIONS
-  );
-  const [selectedPeriode, setSelectedPeriode] = useState<string>(
-    DEFAULT_PERIODE_OPTIONS[0].id
-  );
+  const [activePeriods, setActivePeriods] = useState<AdminPeriodeOption[]>([]);
+  const [selectedPeriode, setSelectedPeriode] = useState<string>("");
   const [matrixRows, setMatrixRows] = useState<AdminProdiRow[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -257,9 +324,10 @@ export default function AdminDashboardPage() {
 
   /**
    * Fungsi Fetch Data Matriks (Real-time & Murni Dinamis):
-   * 1. Mengambil kerangka baris dari GET /api/akun-prodi
-   * 2. Mengambil status dokumen dari GET /api/dokumen?id_periode={selectedPeriode}
-   * 3. Menimpa status dokumen ke kerangka baris tanpa data lokal/statis
+   * 1. Mengambil seluruh Master Prodi beserta relasi Fakultas dari GET /api/prodi
+   * 2. Mengambil daftar Akun Operator Fakultas terdaftar dari GET /api/fakultas/akun
+   * 3. Mengambil status dokumen dari GET /api/dokumen?id_periode={selectedPeriode}
+   * 4. Menyaring Prodi yang Fakultasnya sudah memiliki akun aktif & menimpa status dokumen
    */
   const fetchMatrixData = useCallback(
     async (periodeIdParam?: string) => {
@@ -268,17 +336,25 @@ export default function AdminDashboardPage() {
 
       setIsFetching(true);
       try {
-        const [akunResponse, dokumenResponse] = await Promise.all([
-          apiClient.get<AkunProdiMatrixResponse>("/api/akun-prodi"),
+        const [prodiRes, akunFakultasRes, dokumenRes] = await Promise.all([
+          apiClient.get<ProdiMasterMatrixResponse>("/api/prodi"),
+          apiClient.get<FakultasAccountMatrixResponse>("/api/fakultas/akun"),
           apiClient.get<DokumenListResponse>(
             `/api/dokumen?id_periode=${encodeURIComponent(targetPeriode)}`
           ),
         ]);
 
-        const akunRecords = akunResponse.data?.data || [];
-        const dokumenRecords = dokumenResponse.data?.data || [];
+        const prodiList = prodiRes.data?.data || [];
+        const fakultasWithAccounts = akunFakultasRes.data?.data || [];
+        const dokumenRecords = dokumenRes.data?.data || [];
 
-        setMatrixRows(buildDynamicMatrixFromApi(akunRecords, dokumenRecords));
+        setMatrixRows(
+          buildDynamicMatrixFromApi(
+            prodiList,
+            fakultasWithAccounts,
+            dokumenRecords
+          )
+        );
       } catch (err) {
         const axiosErr = err as AxiosError<ApiErrorResponse>;
         const status = axiosErr.response?.status;
@@ -329,30 +405,44 @@ export default function AdminDashboardPage() {
           return;
         }
 
-        // Ambil daftar periode dari API /api/periode jika tersedia
+        // Ambil daftar periode dari API /api/periode
         try {
           const periodeRes =
             await apiClient.get<PeriodeListResponse>("/api/periode");
           const rawPeriode = periodeRes.data?.data || [];
 
-          if (rawPeriode.length > 0 && isMounted) {
-            const mapped: AdminPeriodeOption[] = rawPeriode.map((p) => ({
-              id: String(p.id),
-              nama_periode: p.nama_periode,
-              label: p.is_default
-                ? `${p.nama_periode} (Aktif)`
-                : p.nama_periode,
-            }));
-            const activeDefault =
-              rawPeriode.find((p) => p.is_default) || rawPeriode[0];
+          // Filter murni berdasarkan status_aktif dari Backend (status_aktif === 1 atau true)
+          const filteredActive = rawPeriode.filter(
+            (p) => p.status_aktif === true || p.status_aktif === 1
+          );
 
-            setPeriodeOptions(mapped);
-            if (activeDefault) {
-              setSelectedPeriode(String(activeDefault.id));
+          if (isMounted) {
+            if (filteredActive.length > 0) {
+              const mapped: AdminPeriodeOption[] = filteredActive.map((p) => ({
+                id: String(p.id),
+                nama_periode: p.nama_periode,
+                label: `${p.nama_periode} (Aktif)`,
+              }));
+
+              setActivePeriods(mapped);
+              // Set nilai default dropdown (initial state) ke elemen pertama dari array activePeriods
+              setSelectedPeriode((prev) => {
+                if (prev && mapped.some((m) => m.id === prev)) {
+                  return prev;
+                }
+                return mapped[0].id;
+              });
+            } else {
+              setActivePeriods([]);
+              setSelectedPeriode("");
             }
           }
         } catch {
-          // Gunakan DEFAULT_PERIODE_OPTIONS jika gagal memuat periode
+          if (isMounted) {
+            setActivePeriods([]);
+            setSelectedPeriode("");
+            toast.error("Gagal memuat daftar periode akademik dari server.");
+          }
         }
 
         if (isMounted) {
@@ -725,20 +815,22 @@ startxref
   }, [matrixRows]);
 
   /**
-   * Search Filter Real-time berdasarkan nama Program Studi Universitas Nurul Huda
+   * Search Filter Real-time berdasarkan nama Program Studi atau singkatan Fakultas
    */
   const filteredRows = useMemo(() => {
     const q = sanitizePlainText(searchQuery).toLowerCase();
     if (!q) return matrixRows;
-    return matrixRows.filter((row) =>
-      row.nama_prodi.toLowerCase().includes(q)
+    return matrixRows.filter(
+      (row) =>
+        row.nama_prodi.toLowerCase().includes(q) ||
+        (row.singkatan_fakultas || "").toLowerCase().includes(q)
     );
   }, [matrixRows, searchQuery]);
 
   const selectedPeriodeLabel = useMemo(() => {
-    const found = periodeOptions.find((p) => p.id === selectedPeriode);
-    return found ? found.label : selectedPeriode;
-  }, [periodeOptions, selectedPeriode]);
+    const found = activePeriods.find((p) => p.id === selectedPeriode);
+    return found ? found.label : (selectedPeriode || "-");
+  }, [activePeriods, selectedPeriode]);
 
   /**
    * Render Badge Status pada sel tabel Matriks
@@ -903,14 +995,20 @@ startxref
                 aria-label="Pilih Periode Akademik"
                 value={selectedPeriode}
                 onChange={handlePeriodeChange}
-                disabled={isFetching}
+                disabled={isFetching || activePeriods.length === 0}
                 className="appearance-none rounded-xl border border-slate-200 bg-white pl-9 pr-9 py-2 text-xs sm:text-sm font-medium text-slate-700 shadow-sm hover:border-slate-300 focus:border-[#0D47A1] focus:outline-none focus:ring-2 focus:ring-[#0D47A1]/15 transition cursor-pointer disabled:opacity-60"
               >
-                {periodeOptions.map((periodeOption) => (
-                  <option key={periodeOption.id} value={periodeOption.id}>
-                    {periodeOption.label}
+                {activePeriods.length === 0 ? (
+                  <option value="" disabled>
+                    Tidak ada periode aktif
                   </option>
-                ))}
+                ) : (
+                  activePeriods.map((periodeOption) => (
+                    <option key={periodeOption.id} value={periodeOption.id}>
+                      {periodeOption.label}
+                    </option>
+                  ))
+                )}
               </select>
               <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none absolute right-3" />
             </div>
@@ -1069,13 +1167,16 @@ startxref
                             .
                           </>
                         ) : (
-                          "Belum ada data akun operator Program Studi yang terdaftar di database."
+                          "Belum ada Program Studi yang Fakultasnya memiliki akun operator aktif."
                         )}
                       </td>
                     </tr>
                   ) : (
                     filteredRows.map((row) => {
                       const safeProdi = sanitizePlainText(row.nama_prodi);
+                      const safeSingkatan = row.singkatan_fakultas
+                        ? sanitizePlainText(row.singkatan_fakultas)
+                        : "";
                       const doneInRow = (
                         [1, 2, 3, 4] as TahapDokumenNumber[]
                       ).filter(
@@ -1090,6 +1191,7 @@ startxref
                           <td className="py-4 px-6">
                             <div className="font-bold text-slate-900">
                               {safeProdi}
+                              {safeSingkatan ? ` (${safeSingkatan})` : ""}
                             </div>
                             <div className="text-[11px] text-slate-500 mt-0.5">
                               {doneInRow}/4 Tahap Selesai

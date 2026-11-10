@@ -30,9 +30,21 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // 2. Proteksi Rute /prodi/:path*
-  if (pathname.startsWith("/prodi")) {
+  // 2. Proteksi Rute /fakultas/:path* (dan /prodi/:path* legacy)
+  if (pathname.startsWith("/fakultas") || pathname.startsWith("/prodi")) {
     if (!token || role !== "user") {
+      const response = NextResponse.redirect(loginUrl);
+      response.cookies.delete(TOKEN_COOKIE_KEY);
+      response.cookies.delete(ROLE_COOKIE_KEY);
+      response.cookies.delete(USER_COOKIE_KEY);
+      return response;
+    }
+  }
+
+  // 3. Proteksi Rute /unit/:path* (Role: biro, pusat, lab)
+  if (pathname.startsWith("/unit")) {
+    const isUnitRole = role === "biro" || role === "pusat" || role === "lab";
+    if (!token || !isUnitRole) {
       const response = NextResponse.redirect(loginUrl);
       response.cookies.delete(TOKEN_COOKIE_KEY);
       response.cookies.delete(ROLE_COOKIE_KEY);
@@ -45,5 +57,10 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/prodi/:path*"],
+  matcher: [
+    "/admin/:path*",
+    "/fakultas/:path*",
+    "/prodi/:path*",
+    "/unit/:path*",
+  ],
 };

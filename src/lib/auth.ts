@@ -52,8 +52,11 @@ export function getAuthSession(): {
 } {
   const token = Cookies.get(TOKEN_COOKIE_KEY);
   const rawRole = Cookies.get(ROLE_COOKIE_KEY);
+  const validRoles: UserRole[] = ["admin", "user", "biro", "pusat", "lab"];
   const role: UserRole | undefined =
-    rawRole === "admin" || rawRole === "user" ? rawRole : undefined;
+    rawRole && (validRoles as string[]).includes(rawRole)
+      ? (rawRole as UserRole)
+      : undefined;
   const rawUser = Cookies.get(USER_COOKIE_KEY);
 
   let user: AuthUser | null = null;
@@ -75,7 +78,10 @@ export function getDashboardPathByRole(role?: UserRole | string): string {
   if (role === "admin") {
     return "/admin/dashboard";
   }
-  return "/prodi/dashboard";
+  if (role === "biro" || role === "pusat" || role === "lab") {
+    return "/unit/dashboard";
+  }
+  return "/fakultas/dashboard";
 }
 
 /**
