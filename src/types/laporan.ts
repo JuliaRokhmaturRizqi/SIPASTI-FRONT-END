@@ -33,3 +33,14 @@ export interface LaporanKinerjaListResponse {
   message?: string;
   data?: LaporanKinerjaItem[];
 }
+
+export interface LaporanKinerjaValidasiPayload {
+  status: "Selesai" | "Revisi";
+  catatan_revisi?: string | null;
+}
+
+export interface LaporanKinerjaValidasiResponse {
+  status: "success" | "error";
+  message: string;
+  data?: LaporanKinerjaItem;
+}

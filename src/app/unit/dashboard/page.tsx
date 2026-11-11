@@ -12,6 +12,8 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock,
+  Edit3,
+  ExternalLink,
   FileCheck2,
   FilePlus2,
   FileQuestion,
@@ -87,6 +89,9 @@ export default function UnitDashboardPage() {
 
   // State Modal Form Laporan Kegiatan
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [activeLaporan, setActiveLaporan] = useState<LaporanKinerjaItem | null>(
+    null
+  );
 
   const handleUnauthorizedExit = useCallback(() => {
     clearAuthSession();
@@ -523,7 +528,10 @@ export default function UnitDashboardPage() {
           <section aria-label="Aksi Tambah Laporan">
             <button
               type="button"
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => {
+                setActiveLaporan(null);
+                setIsModalOpen(true);
+              }}
               disabled={isFetching || periodeList.length === 0}
               className="w-full py-4 px-6 rounded-2xl bg-[#0D47A1] hover:bg-[#1565C0] active:bg-blue-900 text-white font-bold text-sm sm:text-base shadow-md shadow-blue-900/15 hover:shadow-lg transition-all flex items-center justify-center gap-3 border border-blue-400/30 cursor-pointer disabled:opacity-50 group"
             >
@@ -620,8 +628,8 @@ export default function UnitDashboardPage() {
                     </p>
 
                     {/* Metadata Footer Kartu */}
-                    <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
-                      <div className="flex items-center gap-4">
+                    <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+                      <div className="flex flex-wrap items-center gap-4">
                         {tanggalFormat && (
                           <span className="inline-flex items-center gap-1 text-slate-400">
                             <Clock className="w-3.5 h-3.5" />
@@ -636,7 +644,33 @@ export default function UnitDashboardPage() {
                             </strong>
                           </span>
                         )}
+                        {laporan.link_bukti && (
+                          <a
+                            href={laporan.link_bukti}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[#0D47A1] hover:text-[#1565C0] font-semibold hover:underline"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>Bukti Dukung</span>
+                          </a>
+                        )}
                       </div>
+
+                      {/* Tombol Edit Form (Hanya untuk laporan Review atau Revisi) */}
+                      {(laporan.status === "Review" || laporan.status === "Revisi") && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveLaporan(laporan);
+                            setIsModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-[#0D47A1] text-xs font-semibold shadow-2xs transition cursor-pointer"
+                        >
+                          <Edit3 className="w-3.5 h-3.5 text-[#0D47A1]" />
+                          <span>Edit Form</span>
+                        </button>
+                      )}
                     </div>
 
                     {/* Alert Box Catatan Revisi (Hanya muncul jika status Revisi) */}
@@ -665,7 +699,11 @@ export default function UnitDashboardPage() {
       {/* Slide-over Panel Modal Form Laporan Kegiatan */}
       <UnitLaporanModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        activeData={activeLaporan}
+        onClose={() => {
+          setIsModalOpen(false);
+          setActiveLaporan(null);
+        }}
         selectedPeriode={selectedPeriode}
         periodeLabel={currentPeriodeObj?.nama_periode || ""}
         namaUnit={safeNamaUnit}
