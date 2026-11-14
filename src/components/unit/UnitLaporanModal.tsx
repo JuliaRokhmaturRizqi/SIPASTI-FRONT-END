@@ -1,17 +1,21 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { AxiosError } from "axios";
 import toast from "react-hot-toast";
 import {
   AlertCircle,
   AlertTriangle,
-  Briefcase,
+  Calendar,
   CheckCircle2,
   FileEdit,
   FilePlus,
+  Image as ImageIcon,
   Link as LinkIcon,
   Loader2,
+  PenTool,
+  RotateCcw,
+  Upload,
   UserCheck,
   X,
 } from "lucide-react";
@@ -30,6 +34,21 @@ export interface UnitLaporanModalProps {
   onSuccess?: () => void;
 }
 
+const BULAN_OPTIONS = [
+  "Januari",
+  "Februari",
+  "Maret",
+  "April",
+  "Mei",
+  "Juni",
+  "Juli",
+  "Agustus",
+  "September",
+  "Oktober",
+  "November",
+  "Desember",
+] as const;
+
 export default function UnitLaporanModal({
   isOpen,
   onClose,
@@ -43,6 +62,7 @@ export default function UnitLaporanModal({
   const isEditMode = Boolean(activeData);
 
   // Form Fields State
+  const [bulanLaporan, setBulanLaporan] = useState("");
   const [namaKegiatan, setNamaKegiatan] = useState("");
   const [uraian, setUraian] = useState("");
   const [kendala, setKendala] = useState("");
@@ -50,6 +70,14 @@ export default function UnitLaporanModal({
   const [tindakLanjut, setTindakLanjut] = useState("");
   const [linkBukti, setLinkBukti] = useState("");
   const [namaPenandatangan, setNamaPenandatangan] = useState("");
+
+  // Signature (Tanda Tangan) State
+  const [signatureTab, setSignatureTab] = useState<"upload" | "draw">("upload");
+  const [ttdFile, setTtdFile] = useState<File | null>(null);
+  const [ttdPreviewUrl, setTtdPreviewUrl] = useState<string | null>(null);
+  const [canvasHasDrawing, setCanvasHasDrawing] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const isDrawingRef = useRef(false);
 
   // Validation & Loading State
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -59,6 +87,7 @@ export default function UnitLaporanModal({
   useEffect(() => {
     if (isOpen) {
       if (activeData) {
+        setBulanLaporan(activeData.bulan_laporan || "");
         setNamaKegiatan(activeData.nama_kegiatan || "");
         setUraian(activeData.uraian || "");
         setKendala(activeData.kendala || "");
@@ -66,7 +95,17 @@ export default function UnitLaporanModal({
         setTindakLanjut(activeData.tindak_lanjut || "");
         setLinkBukti(activeData.link_bukti || "");
         setNamaPenandatangan(activeData.nama_penandatangan || "");
+        if (activeData.ttd_image_path) {
+          // Format storage url jika ttd sebelumnya ada
+          const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+          setTtdPreviewUrl(`${baseUrl}/storage/${activeData.ttd_image_path}`);
+        } else {
+          setTtdPreviewUrl(null);
+        }
       } else {
+        // Default bulan ke bulan saat ini
+        const currentMonthIdx = new Date().getMonth();
+        setBulanLaporan(BULAN_OPTIONS[currentMonthIdx]);
         setNamaKegiatan("");
         setUraian("");
         setKendala("");
@@ -74,11 +113,105 @@ export default function UnitLaporanModal({
         setTindakLanjut("");
         setLinkBukti("");
         setNamaPenandatangan("");
+        setTtdPreviewUrl(null);
       }
+      setTtdFile(null);
+      setCanvasHasDrawing(false);
+      setSignatureTab("upload");
       setFieldErrors({});
       setIsSubmitting(false);
     }
   }, [isOpen, activeData]);
+
+  // Setup Canvas saat tab "draw" aktif
+  useEffect(() => {
+    if (signatureTab === "draw" && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.strokeStyle = "#0D47A1";
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+      }
+    }
+  }, [signatureTab]);
+
+  // Handler Canvas Gambar Langsung
+  const getCoordinates = (
+    e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
+  ) => {
+    if (!canvasRef.current) return { x: 0, y: 0 };
+    const rect = canvasRef.current.getBoundingClientRect();
+    const scaleX = canvasRef.current.width / rect.width;
+    const scaleY = canvasRef.current.height / rect.height;
+
+    if ("touches" in e) {
+      const touch = e.touches[0];
+      return {
+        x: (touch.clientX - rect.left) * scaleX,
+        y: (touch.clientY - rect.top) * scaleY,
+      };
+    }
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
+    };
+  };
+
+  const startDrawing = (
+    e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
+  ) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    isDrawingRef.current = true;
+    const { x, y } = getCoordinates(e);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    setCanvasHasDrawing(true);
+  };
+
+  const draw = (
+    e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
+  ) => {
+    if (!isDrawingRef.current || !canvasRef.current) return;
+    const ctx = canvasRef.current.getContext("2d");
+    if (!ctx) return;
+
+    const { x, y } = getCoordinates(e);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+
+  const stopDrawing = () => {
+    isDrawingRef.current = false;
+  };
+
+  const clearCanvas = () => {
+    if (!canvasRef.current) return;
+    const ctx = canvasRef.current.getContext("2d");
+    if (ctx) {
+      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    }
+    setCanvasHasDrawing(false);
+  };
+
+  // Handler Unggah File Gambar TTD
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error("Ukuran file gambar TTD maksimal 2MB.");
+        return;
+      }
+      setTtdFile(file);
+      setTtdPreviewUrl(URL.createObjectURL(file));
+      setFieldErrors((prev) => ({ ...prev, ttd: "" }));
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -87,19 +220,24 @@ export default function UnitLaporanModal({
   const safeKategoriUnit = sanitizePlainText(kategoriUnit);
 
   /**
-   * Submit Handler (Create POST & Edit PUT)
+   * Submit Handler (Create POST & Edit POST/PUT)
+   * Menggunakan FormData untuk mendukung pengiriman file / gambar TTD
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
 
-    // Client-side Validation Sederhana
+    // Client-side Validation
     const errors: Record<string, string> = {};
+    const trimmedBulan = bulanLaporan.trim();
     const trimmedNama = namaKegiatan.trim();
     const trimmedUraian = uraian.trim();
     const trimmedPenandatangan = namaPenandatangan.trim();
     const trimmedLink = linkBukti.trim();
 
+    if (!trimmedBulan) {
+      errors.bulan_laporan = "Bulan laporan kegiatan wajib dipilih.";
+    }
     if (!trimmedNama) {
       errors.nama_kegiatan = "Nama kegiatan wajib diisi.";
     }
@@ -107,11 +245,13 @@ export default function UnitLaporanModal({
       errors.uraian = "Uraian rincian kegiatan wajib diisi.";
     }
     if (!trimmedPenandatangan) {
-      errors.nama_penandatangan = "Nama penandatangan / pimpinan unit wajib diisi.";
+      errors.nama_penandatangan =
+        "Nama penandatangan / pimpinan unit wajib diisi.";
     }
     if (trimmedLink) {
       if (!/^https?:\/\//i.test(trimmedLink)) {
-        errors.link_bukti = "Format URL bukti harus diawali http:// atau https://";
+        errors.link_bukti =
+          "Format URL bukti harus diawali http:// atau https://";
       }
     }
 
@@ -130,30 +270,53 @@ export default function UnitLaporanModal({
     setIsSubmitting(true);
     setFieldErrors({});
 
-    const payload = {
-      id_periode: Number(targetPeriodeId),
-      nama_kegiatan: trimmedNama,
-      uraian: trimmedUraian,
-      kendala: kendala.trim() || null,
-      dukungan: dukungan.trim() || null,
-      tindak_lanjut: tindakLanjut.trim() || null,
-      link_bukti: trimmedLink || null,
-      nama_penandatangan: trimmedPenandatangan,
-    };
+    // Buat objek FormData
+    const formData = new FormData();
+    formData.append("id_periode", String(targetPeriodeId));
+    formData.append("bulan_laporan", trimmedBulan);
+    formData.append("nama_kegiatan", trimmedNama);
+    formData.append("uraian", trimmedUraian);
+    if (kendala.trim()) formData.append("kendala", kendala.trim());
+    if (dukungan.trim()) formData.append("dukungan", dukungan.trim());
+    if (tindakLanjut.trim()) formData.append("tindak_lanjut", tindakLanjut.trim());
+    if (trimmedLink) formData.append("link_bukti", trimmedLink);
+    formData.append("nama_penandatangan", trimmedPenandatangan);
+
+    // Lampirkan Tanda Tangan (File atau Base64 Canvas)
+    if (signatureTab === "upload" && ttdFile) {
+      formData.append("ttd_image", ttdFile);
+    } else if (signatureTab === "draw" && canvasHasDrawing && canvasRef.current) {
+      const dataUrl = canvasRef.current.toDataURL("image/png");
+      formData.append("ttd_base64", dataUrl);
+    }
 
     try {
       if (isEditMode && activeData?.id) {
-        // Mode EDIT: PUT /api/laporan-kinerja/{id}
-        const response = await apiClient.put(
+        // Mode EDIT via multipart form-data
+        formData.append("_method", "PUT");
+        const response = await apiClient.post(
           `/api/laporan-kinerja/${activeData.id}`,
-          payload
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
         );
         toast.success(
           response.data?.message || "Laporan kegiatan berhasil diperbarui."
         );
       } else {
-        // Mode CREATE: POST /api/laporan-kinerja
-        const response = await apiClient.post("/api/laporan-kinerja", payload);
+        // Mode CREATE via multipart form-data
+        const response = await apiClient.post(
+          "/api/laporan-kinerja",
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
         toast.success(
           response.data?.message || "Laporan kegiatan baru berhasil disimpan."
         );
@@ -171,8 +334,27 @@ export default function UnitLaporanModal({
 
       const httpStatus = axiosErr.response?.status;
       const data = axiosErr.response?.data;
+      const errorMessage = data?.message || "";
 
-      if (httpStatus === 422 && data?.errors) {
+      // Validasi 1 Bulan 1 Laporan per Unit Kerja
+      if (
+        httpStatus === 422 &&
+        (errorMessage.toLowerCase().includes("sudah mengunggah laporan") ||
+          errorMessage.toLowerCase().includes("bulan") ||
+          data?.errors?.bulan_laporan)
+      ) {
+        const errorText =
+          errorMessage ||
+          `Gagal: Laporan untuk bulan ${trimmedBulan} sudah pernah dibuat pada periode aktif ini!`;
+        setFieldErrors((prev) => ({
+          ...prev,
+          bulan_laporan: errorText,
+        }));
+        toast.error(errorText, {
+          duration: 6000,
+          icon: "⚠️",
+        });
+      } else if (httpStatus === 422 && data?.errors) {
         const mappedErrors: Record<string, string> = {};
         for (const [key, messages] of Object.entries(data.errors)) {
           if (Array.isArray(messages) && messages.length > 0) {
@@ -225,10 +407,14 @@ export default function UnitLaporanModal({
                 id="modal-laporan-title"
                 className="text-base sm:text-lg font-bold text-white tracking-tight"
               >
-                {isEditMode ? "Edit Laporan Kegiatan" : "Form Laporan Kegiatan Baru"}
+                {isEditMode
+                  ? "Edit Laporan Kegiatan"
+                  : "Form Laporan Kegiatan Baru"}
               </h3>
               <p className="text-xs text-blue-100 mt-0.5">
-                {safeNamaUnit} &bull; Periode {safePeriode}
+                {safeNamaUnit}{" "}
+                {safeKategoriUnit ? `(${safeKategoriUnit.toUpperCase()})` : ""}{" "}
+                &bull; Periode {safePeriode}
               </p>
             </div>
           </div>
@@ -251,19 +437,75 @@ export default function UnitLaporanModal({
           noValidate
         >
           {/* Box Catatan Revisi jika dalam mode Edit dan sebelumnya Revisi */}
-          {isEditMode && activeData?.status === "Revisi" && activeData.catatan_revisi && (
-            <div className="rounded-xl bg-red-50 text-red-800 border border-red-200 p-4 space-y-1 text-xs">
-              <div className="flex items-center gap-2 font-bold text-red-900">
-                <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-                <span>Catatan Revisi dari Administrator:</span>
+          {isEditMode &&
+            activeData?.status === "Revisi" &&
+            activeData.catatan_revisi && (
+              <div className="rounded-xl bg-red-50 text-red-800 border border-red-200 p-4 space-y-1 text-xs">
+                <div className="flex items-center gap-2 font-bold text-red-900">
+                  <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                  <span>Catatan Revisi dari Administrator:</span>
+                </div>
+                <p className="leading-relaxed pl-6 text-red-700">
+                  {sanitizePlainText(activeData.catatan_revisi)}
+                </p>
               </div>
-              <p className="leading-relaxed pl-6 text-red-700">
-                {sanitizePlainText(activeData.catatan_revisi)}
-              </p>
-            </div>
-          )}
+            )}
 
-          {/* 1. Nama Kegiatan (Wajib) */}
+          {/* 1. Dropdown Bulan Laporan (Wajib - Paling Atas) */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor="form-bulan-laporan"
+                className="block text-xs font-bold uppercase tracking-wider text-slate-700"
+              >
+                Bulan Pelaporan
+                <span className="text-red-500 font-bold ml-1">*</span>
+              </label>
+              <span className="text-[10px] text-slate-400 font-medium">
+                Maksimal 1 laporan per bulan
+              </span>
+            </div>
+            <div className="relative flex items-center">
+              <Calendar className="w-4 h-4 text-slate-400 pointer-events-none absolute left-3.5" />
+              <select
+                id="form-bulan-laporan"
+                required
+                disabled={isSubmitting}
+                value={bulanLaporan}
+                onChange={(e) => {
+                  setBulanLaporan(e.target.value);
+                  if (fieldErrors.bulan_laporan) {
+                    setFieldErrors((prev) => ({ ...prev, bulan_laporan: "" }));
+                  }
+                }}
+                className={`w-full rounded-xl border pl-10 pr-9 py-2.5 text-xs sm:text-sm font-semibold text-slate-800 bg-white hover:bg-slate-50 focus:bg-white transition outline-none appearance-none cursor-pointer ${
+                  fieldErrors.bulan_laporan
+                    ? "border-red-400 ring-2 ring-red-400/20 focus:border-red-500"
+                    : "border-slate-300/80 focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20"
+                }`}
+              >
+                <option value="" disabled>
+                  -- Pilih Bulan Laporan --
+                </option>
+                {BULAN_OPTIONS.map((bulan) => (
+                  <option key={bulan} value={bulan}>
+                    Bulan {bulan}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400">
+                <Calendar className="w-4 h-4 opacity-50" />
+              </div>
+            </div>
+            {fieldErrors.bulan_laporan && (
+              <p className="text-[11px] font-semibold text-red-600 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{fieldErrors.bulan_laporan}</span>
+              </p>
+            )}
+          </div>
+
+          {/* 2. Nama Kegiatan (Wajib) */}
           <div className="space-y-1.5">
             <label
               htmlFor="form-nama-kegiatan"
@@ -298,7 +540,7 @@ export default function UnitLaporanModal({
             )}
           </div>
 
-          {/* 2. Uraian Rincian Kegiatan (Wajib, min 4 baris) */}
+          {/* 3. Uraian Rincian Kegiatan (Wajib, min 4 baris) */}
           <div className="space-y-1.5">
             <label
               htmlFor="form-uraian"
@@ -333,7 +575,7 @@ export default function UnitLaporanModal({
             )}
           </div>
 
-          {/* 3. Kendala yang Dihadapi (Opsional) */}
+          {/* 4. Kendala yang Dihadapi (Opsional) */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label
@@ -342,7 +584,9 @@ export default function UnitLaporanModal({
               >
                 Kendala yang Dihadapi
               </label>
-              <span className="text-[10px] text-slate-400 font-medium">Opsional</span>
+              <span className="text-[10px] text-slate-400 font-medium">
+                Opsional
+              </span>
             </div>
             <textarea
               id="form-kendala"
@@ -355,7 +599,7 @@ export default function UnitLaporanModal({
             />
           </div>
 
-          {/* 4. Dukungan yang Diperlukan (Opsional) */}
+          {/* 5. Dukungan yang Diperlukan (Opsional) */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label
@@ -364,7 +608,9 @@ export default function UnitLaporanModal({
               >
                 Dukungan yang Diperlukan
               </label>
-              <span className="text-[10px] text-slate-400 font-medium">Opsional</span>
+              <span className="text-[10px] text-slate-400 font-medium">
+                Opsional
+              </span>
             </div>
             <textarea
               id="form-dukungan"
@@ -377,7 +623,7 @@ export default function UnitLaporanModal({
             />
           </div>
 
-          {/* 5. Tindak Lanjut (Opsional) */}
+          {/* 6. Tindak Lanjut (Opsional) */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label
@@ -386,7 +632,9 @@ export default function UnitLaporanModal({
               >
                 Rencana Tindak Lanjut
               </label>
-              <span className="text-[10px] text-slate-400 font-medium">Opsional</span>
+              <span className="text-[10px] text-slate-400 font-medium">
+                Opsional
+              </span>
             </div>
             <textarea
               id="form-tindak-lanjut"
@@ -399,7 +647,7 @@ export default function UnitLaporanModal({
             />
           </div>
 
-          {/* 6. Link Bukti Dukung (URL - Opsional) */}
+          {/* 7. Link Bukti Dukung (URL - Opsional) */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label
@@ -408,7 +656,9 @@ export default function UnitLaporanModal({
               >
                 Link Bukti Kegiatan
               </label>
-              <span className="text-[10px] text-slate-400 font-medium">Opsional (URL)</span>
+              <span className="text-[10px] text-slate-400 font-medium">
+                Opsional (URL)
+              </span>
             </div>
             <div className="relative flex items-center">
               <LinkIcon className="w-4 h-4 text-slate-400 pointer-events-none absolute left-3.5" />
@@ -439,7 +689,7 @@ export default function UnitLaporanModal({
             )}
           </div>
 
-          {/* 7. Nama Penandatangan / Pimpinan Unit (Wajib) */}
+          {/* 8. Nama Penandatangan / Pimpinan Unit (Wajib) */}
           <div className="space-y-1.5 pt-1">
             <label
               htmlFor="form-nama-penandatangan"
@@ -458,7 +708,10 @@ export default function UnitLaporanModal({
                 onChange={(e) => {
                   setNamaPenandatangan(e.target.value);
                   if (fieldErrors.nama_penandatangan) {
-                    setFieldErrors((prev) => ({ ...prev, nama_penandatangan: "" }));
+                    setFieldErrors((prev) => ({
+                      ...prev,
+                      nama_penandatangan: "",
+                    }));
                   }
                 }}
                 placeholder="Contoh: Dr. H. Ahmad Fauzi, M.Kom (Kepala Pusat IT)"
@@ -474,6 +727,155 @@ export default function UnitLaporanModal({
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                 <span>{fieldErrors.nama_penandatangan}</span>
               </p>
+            )}
+          </div>
+
+          {/* 9. Panel Tanda Tangan Digital (Tabs: Unggah vs Gambar Langsung) */}
+          <div className="space-y-2 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                Tanda Tangan Digital (TTD)
+              </label>
+              <span className="text-[10px] text-slate-400 font-medium">
+                Digunakan untuk cetak lembar PDF
+              </span>
+            </div>
+
+            {/* Tab Selector TTD */}
+            <div className="p-1 rounded-xl bg-slate-100 flex items-center gap-1 border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setSignatureTab("upload")}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  signatureTab === "upload"
+                    ? "bg-white text-[#0D47A1] shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Unggah TTD (Gambar)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSignatureTab("draw")}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  signatureTab === "draw"
+                    ? "bg-white text-[#0D47A1] shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <PenTool className="w-3.5 h-3.5" />
+                <span>Gambar Langsung (Canvas)</span>
+              </button>
+            </div>
+
+            {/* TAB 1: Unggah Gambar TTD */}
+            {signatureTab === "upload" && (
+              <div className="p-4 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 space-y-3 text-center">
+                {ttdPreviewUrl ? (
+                  <div className="space-y-2">
+                    <div className="w-48 h-24 mx-auto bg-white rounded-lg border border-slate-200 p-2 flex items-center justify-center shadow-xs overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={ttdPreviewUrl}
+                        alt="Preview Tanda Tangan"
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
+                      <label
+                        htmlFor="file-ttd-replace"
+                        className="text-xs font-semibold text-[#0D47A1] hover:underline cursor-pointer"
+                      >
+                        Ganti Gambar
+                      </label>
+                      <input
+                        id="file-ttd-replace"
+                        type="file"
+                        accept="image/png, image/jpeg, image/jpg"
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                      <span className="text-slate-300">&bull;</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTtdFile(null);
+                          setTtdPreviewUrl(null);
+                        }}
+                        className="text-xs font-semibold text-red-600 hover:underline cursor-pointer"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label
+                    htmlFor="file-ttd-upload"
+                    className="block cursor-pointer space-y-1.5 py-3"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0D47A1] border border-blue-100 flex items-center justify-center mx-auto">
+                      <ImageIcon className="w-5 h-5 text-[#0D47A1]" />
+                    </div>
+                    <p className="text-xs font-bold text-slate-700">
+                      Pilih berkas gambar TTD
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      Format PNG atau JPG dengan latar belakang transparan/putih (Maks. 2MB)
+                    </p>
+                    <input
+                      id="file-ttd-upload"
+                      type="file"
+                      accept="image/png, image/jpeg, image/jpg"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+            )}
+
+            {/* TAB 2: Gambar Langsung di Canvas */}
+            {signatureTab === "draw" && (
+              <div className="space-y-2">
+                <div className="relative border-2 border-dashed border-slate-300 rounded-xl overflow-hidden bg-white shadow-inner">
+                  <canvas
+                    ref={canvasRef}
+                    width={480}
+                    height={160}
+                    onMouseDown={startDrawing}
+                    onMouseMove={draw}
+                    onMouseUp={stopDrawing}
+                    onMouseLeave={stopDrawing}
+                    onTouchStart={startDrawing}
+                    onTouchMove={draw}
+                    onTouchEnd={stopDrawing}
+                    className="w-full h-36 touch-none cursor-crosshair bg-white"
+                  />
+                  {!canvasHasDrawing && (
+                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center text-slate-300 text-xs font-semibold select-none">
+                      Goreskan tanda tangan Anda di sini menggunakan mouse atau touch
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-[11px] text-slate-500">
+                    {canvasHasDrawing
+                      ? "✓ Tanda tangan tergores di canvas"
+                      : "Kanvas kosong"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={clearCanvas}
+                    disabled={!canvasHasDrawing}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-slate-600 hover:text-red-600 hover:bg-red-50 border border-slate-200 text-xs font-semibold transition cursor-pointer disabled:opacity-40"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Hapus Goresan</span>
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 
@@ -500,7 +902,9 @@ export default function UnitLaporanModal({
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4 text-[#FBC02D]" />
-                  <span>{isEditMode ? "Perbarui Laporan" : "Simpan Laporan"}</span>
+                  <span>
+                    {isEditMode ? "Perbarui Laporan" : "Simpan Laporan"}
+                  </span>
                 </>
               )}
             </button>

@@ -1,12 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Briefcase,
   Building2,
   Calendar,
+  GraduationCap,
   LayoutDashboard,
   LogOut,
   ShieldCheck,
@@ -37,13 +38,39 @@ export default function AdminSidebar({
   const pathname = usePathname();
   const safeUsername = sanitizePlainText(username);
 
+  // Deteksi Modul Awal berdasarkan rute aktif
+  const isKinerjaRoute =
+    pathname.startsWith("/admin/laporan-kinerja") ||
+    pathname.startsWith("/admin/master-data") ||
+    pathname.startsWith("/admin/data-akun-unit");
+
+  const [activeModule, setActiveModule] = useState<"akademik" | "kinerja">(
+    isKinerjaRoute ? "kinerja" : "akademik"
+  );
+
+  // Sinkronisasi tab modul saat user berpindah halaman
+  useEffect(() => {
+    if (isKinerjaRoute) {
+      setActiveModule("kinerja");
+    } else if (
+      pathname.startsWith("/admin/dashboard") ||
+      pathname.startsWith("/admin/periode") ||
+      pathname.startsWith("/admin/data-fakultas") ||
+      pathname.startsWith("/admin/prodi")
+    ) {
+      setActiveModule("akademik");
+    }
+  }, [pathname, isKinerjaRoute]);
+
   const isDashboardActive = pathname === "/admin/dashboard";
-  const isLaporanKinerjaActive = pathname.startsWith("/admin/laporan-kinerja");
   const isPeriodeActive = pathname.startsWith("/admin/periode");
-  const isMasterDataActive = pathname.startsWith("/admin/master-data");
   const isFakultasActive =
     pathname.startsWith("/admin/data-fakultas") ||
     pathname.startsWith("/admin/prodi");
+
+  const isLaporanKinerjaActive = pathname.startsWith("/admin/laporan-kinerja");
+  const isMasterDataActive = pathname.startsWith("/admin/master-data");
+  const isAkunUnitActive = pathname.startsWith("/admin/data-akun-unit");
 
   const getMenuLinkClass = (isActive: boolean) =>
     `w-full flex items-center justify-between px-6 py-3 text-xs sm:text-sm font-medium border-l-4 transition-all duration-200 ${
@@ -69,7 +96,7 @@ export default function AdminSidebar({
           isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
-        {/* Bagian Atas: Brand Header & Grouped Navigation */}
+        {/* Bagian Atas: Brand Header, App Switcher & Navigation */}
         <div className="flex-1 overflow-y-auto">
           {/* Brand Header */}
           <div className="h-16 px-6 flex items-center justify-between border-b border-white/10">
@@ -97,132 +124,182 @@ export default function AdminSidebar({
             </button>
           </div>
 
-          {/* Menu Navigasi Terkelompok (Full-Width ERP Style) */}
+          {/* App Switcher Segmented Control */}
+          <div className="px-4 py-3 border-b border-white/10">
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest px-1 mb-2">
+              Modul Pelaporan
+            </p>
+            <div className="p-1 rounded-xl bg-slate-950/40 border border-white/10 flex items-center gap-1 shadow-inner">
+              <button
+                type="button"
+                onClick={() => setActiveModule("akademik")}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 ${
+                  activeModule === "akademik"
+                    ? "bg-[#0D47A1] text-white shadow-sm border border-blue-400/30 font-bold"
+                    : "text-slate-400 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                <LayoutDashboard className="w-3.5 h-3.5 text-[#FBC02D]" />
+                <span>Akademik</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveModule("kinerja")}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 ${
+                  activeModule === "kinerja"
+                    ? "bg-[#0D47A1] text-white shadow-sm border border-blue-400/30 font-bold"
+                    : "text-slate-400 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                <Briefcase className="w-3.5 h-3.5 text-[#FBC02D]" />
+                <span>Kinerja</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Menu Navigasi Berdasarkan Modul Aktif */}
           <nav className="py-2">
-            {/* KATEGORI 1: PELAPORAN AKADEMIK */}
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-6 mb-2 mt-4">
-                Pelaporan Akademik
-              </p>
-              <ul className="space-y-0.5">
-                <li>
-                  <Link
-                    href="/admin/dashboard"
-                    onClick={onCloseMobile}
-                    className={getMenuLinkClass(isDashboardActive)}
-                  >
-                    <span className="flex items-center gap-3">
-                      <LayoutDashboard
-                        className={`w-4 h-4 shrink-0 transition-colors duration-200 ${
-                          isDashboardActive
-                            ? "text-[#FBC02D]"
-                            : "text-slate-400"
-                        }`}
-                      />
-                      <span>Pemantauan Akademik</span>
-                    </span>
-                    {pendingReviewCount > 0 && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FBC02D] text-slate-950">
-                        {pendingReviewCount}
+            {activeModule === "akademik" ? (
+              /* MODUL 1: PORTAL AKADEMIK */
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-6 mb-2 mt-3">
+                  Portal Akademik
+                </p>
+                <ul className="space-y-0.5">
+                  <li>
+                    <Link
+                      href="/admin/dashboard"
+                      onClick={onCloseMobile}
+                      className={getMenuLinkClass(isDashboardActive)}
+                    >
+                      <span className="flex items-center gap-3">
+                        <LayoutDashboard
+                          className={`w-4 h-4 shrink-0 transition-colors duration-200 ${
+                            isDashboardActive
+                              ? "text-[#FBC02D]"
+                              : "text-slate-400"
+                          }`}
+                        />
+                        <span>Pemantauan Akademik</span>
                       </span>
-                    )}
-                  </Link>
-                </li>
-              </ul>
-            </div>
+                      {pendingReviewCount > 0 && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FBC02D] text-slate-950">
+                          {pendingReviewCount}
+                        </span>
+                      )}
+                    </Link>
+                  </li>
 
-            {/* KATEGORI 2: KINERJA UNIT KERJA */}
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-6 mb-2 mt-6">
-                Kinerja Unit Kerja
-              </p>
-              <ul className="space-y-0.5">
-                <li>
-                  <Link
-                    href="/admin/laporan-kinerja"
-                    onClick={onCloseMobile}
-                    className={getMenuLinkClass(isLaporanKinerjaActive)}
-                  >
-                    <span className="flex items-center gap-3">
-                      <Briefcase
-                        className={`w-4 h-4 shrink-0 transition-colors duration-200 ${
-                          isLaporanKinerjaActive
-                            ? "text-[#FBC02D]"
-                            : "text-slate-400"
-                        }`}
-                      />
-                      <span>Pemantauan Kinerja</span>
-                    </span>
-                    {pendingUnitReviewCount > 0 && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FBC02D] text-slate-950">
-                        {pendingUnitReviewCount}
+                  <li>
+                    <Link
+                      href="/admin/periode"
+                      onClick={onCloseMobile}
+                      className={getMenuLinkClass(isPeriodeActive)}
+                    >
+                      <span className="flex items-center gap-3">
+                        <Calendar
+                          className={`w-4 h-4 shrink-0 transition-colors duration-200 ${
+                            isPeriodeActive
+                              ? "text-[#FBC02D]"
+                              : "text-slate-400"
+                          }`}
+                        />
+                        <span>Manajemen Periode</span>
                       </span>
-                    )}
-                  </Link>
-                </li>
-              </ul>
-            </div>
+                    </Link>
+                  </li>
 
-            {/* KATEGORI 3: PENGATURAN & MASTER DATA */}
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-6 mb-2 mt-6">
-                Pengaturan & Master Data
-              </p>
-              <ul className="space-y-0.5">
-                <li>
-                  <Link
-                    href="/admin/periode"
-                    onClick={onCloseMobile}
-                    className={getMenuLinkClass(isPeriodeActive)}
-                  >
-                    <span className="flex items-center gap-3">
-                      <Calendar
-                        className={`w-4 h-4 shrink-0 transition-colors duration-200 ${
-                          isPeriodeActive ? "text-[#FBC02D]" : "text-slate-400"
-                        }`}
-                      />
-                      <span>Manajemen Periode</span>
-                    </span>
-                  </Link>
-                </li>
+                  <li>
+                    <Link
+                      href="/admin/data-fakultas"
+                      onClick={onCloseMobile}
+                      className={getMenuLinkClass(isFakultasActive)}
+                    >
+                      <span className="flex items-center gap-3">
+                        <GraduationCap
+                          className={`w-4 h-4 shrink-0 transition-colors duration-200 ${
+                            isFakultasActive
+                              ? "text-[#FBC02D]"
+                              : "text-slate-400"
+                          }`}
+                        />
+                        <span>Data Akun Fakultas</span>
+                      </span>
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+            ) : (
+              /* MODUL 2: PORTAL KINERJA UNIT */
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-6 mb-2 mt-3">
+                  Portal Kinerja Unit
+                </p>
+                <ul className="space-y-0.5">
+                  <li>
+                    <Link
+                      href="/admin/laporan-kinerja"
+                      onClick={onCloseMobile}
+                      className={getMenuLinkClass(isLaporanKinerjaActive)}
+                    >
+                      <span className="flex items-center gap-3">
+                        <Briefcase
+                          className={`w-4 h-4 shrink-0 transition-colors duration-200 ${
+                            isLaporanKinerjaActive
+                              ? "text-[#FBC02D]"
+                              : "text-slate-400"
+                          }`}
+                        />
+                        <span>Pemantauan Kinerja</span>
+                      </span>
+                      {pendingUnitReviewCount > 0 && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FBC02D] text-slate-950">
+                          {pendingUnitReviewCount}
+                        </span>
+                      )}
+                    </Link>
+                  </li>
 
-                <li>
-                  <Link
-                    href="/admin/master-data"
-                    onClick={onCloseMobile}
-                    className={getMenuLinkClass(isMasterDataActive)}
-                  >
-                    <span className="flex items-center gap-3">
-                      <Building2
-                        className={`w-4 h-4 shrink-0 transition-colors duration-200 ${
-                          isMasterDataActive
-                            ? "text-[#FBC02D]"
-                            : "text-slate-400"
-                        }`}
-                      />
-                      <span>Master Data Kampus</span>
-                    </span>
-                  </Link>
-                </li>
+                  <li>
+                    <Link
+                      href="/admin/master-data"
+                      onClick={onCloseMobile}
+                      className={getMenuLinkClass(isMasterDataActive)}
+                    >
+                      <span className="flex items-center gap-3">
+                        <Building2
+                          className={`w-4 h-4 shrink-0 transition-colors duration-200 ${
+                            isMasterDataActive
+                              ? "text-[#FBC02D]"
+                              : "text-slate-400"
+                          }`}
+                        />
+                        <span>Master Data Kampus</span>
+                      </span>
+                    </Link>
+                  </li>
 
-                <li>
-                  <Link
-                    href="/admin/data-fakultas"
-                    onClick={onCloseMobile}
-                    className={getMenuLinkClass(isFakultasActive)}
-                  >
-                    <span className="flex items-center gap-3">
-                      <Users
-                        className={`w-4 h-4 shrink-0 transition-colors duration-200 ${
-                          isFakultasActive ? "text-[#FBC02D]" : "text-slate-400"
-                        }`}
-                      />
-                      <span>Data Akun & Otoritas</span>
-                    </span>
-                  </Link>
-                </li>
-              </ul>
-            </div>
+                  <li>
+                    <Link
+                      href="/admin/data-akun-unit"
+                      onClick={onCloseMobile}
+                      className={getMenuLinkClass(isAkunUnitActive)}
+                    >
+                      <span className="flex items-center gap-3">
+                        <Users
+                          className={`w-4 h-4 shrink-0 transition-colors duration-200 ${
+                            isAkunUnitActive
+                              ? "text-[#FBC02D]"
+                              : "text-slate-400"
+                          }`}
+                        />
+                        <span>Data Akun Unit Kerja</span>
+                      </span>
+                    </Link>
+                  </li>
+                </ul>
+              </div>
+            )}
           </nav>
         </div>
 

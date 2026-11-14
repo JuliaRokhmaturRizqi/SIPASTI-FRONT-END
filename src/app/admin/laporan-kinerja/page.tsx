@@ -16,6 +16,7 @@ import {
   Download,
   ExternalLink,
   FileCheck2,
+  FileSpreadsheet,
   FileText,
   Filter,
   Loader2,
@@ -94,16 +95,33 @@ function getStatusBadgeConfig(status: LaporanKinerjaStatus) {
 }
 
 /**
+ * Helper resolusi nama string kategori dari berbagai kemungkinan struktur data (string atau objek)
+ */
+function resolveKategoriLabel(kategori: unknown): string {
+  if (!kategori) return "";
+  if (typeof kategori === "string") return kategori;
+  if (typeof kategori === "object" && kategori !== null) {
+    const record = kategori as { nama_kategori?: string; label?: string };
+    return record.nama_kategori || record.label || "";
+  }
+  return "";
+}
+
+/**
  * Helper badge kategori unit kerja
  */
-function getKategoriBadgeConfig(kategori?: string | null) {
-  switch (kategori?.toLowerCase()) {
+function getKategoriBadgeConfig(kategori?: unknown) {
+  const safeStr = resolveKategoriLabel(kategori).toLowerCase();
+  switch (safeStr) {
     case "biro":
       return "bg-blue-50 text-blue-700 border-blue-200";
     case "pusat":
       return "bg-purple-50 text-purple-700 border-purple-200";
     case "lab":
+    case "laboratorium":
       return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    case "fakultas":
+      return "bg-amber-50 text-amber-800 border-amber-200";
     default:
       return "bg-slate-100 text-slate-700 border-slate-200";
   }
@@ -138,8 +156,9 @@ export default function AdminLaporanKinerjaPage() {
   const [isValidating, setIsValidating] = useState<boolean>(false);
   const [isRejectMode, setIsRejectMode] = useState<boolean>(false);
 
-  // State Unduh PDF
+  // State Unduh PDF & Export Excel
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [isExportingExcel, setIsExportingExcel] = useState<boolean>(false);
 
   const handleUnauthorizedExit = useCallback(() => {
     clearAuthSession();
@@ -314,10 +333,13 @@ export default function AdminLaporanKinerjaPage() {
 
     laporanList.forEach((item) => {
       if (item.unit_kerja && item.unit_kerja.id) {
+        const catStr = resolveKategoriLabel(
+          item.unit_kerja.kategori_unit || item.unit_kerja.kategori
+        );
         map.set(item.unit_kerja.id, {
           id: item.unit_kerja.id,
           nama_unit: item.unit_kerja.nama_unit,
-          kategori_unit: item.unit_kerja.kategori_unit,
+          kategori_unit: catStr,
         });
       }
     });
@@ -519,6 +541,68 @@ export default function AdminLaporanKinerjaPage() {
     }
   };
 
+  /**
+   * Export Rekapitulasi Laporan Kinerja ke Excel (.xlsx):
+   * GET /api/laporan-kinerja/export/excel (responseType: 'blob')
+   */
+  const handleExportExcel = async () => {
+    if (isExportingExcel) return;
+
+    setIsExportingExcel(true);
+    const loadingToastId = toast.loading(
+      "Menyiapkan berkas Excel Rekap Kinerja Unit..."
+    );
+
+    const dateSlug = new Date().toISOString().split("T")[0];
+    const fileName = `Rekap_Kinerja_Unit_${dateSlug}.xlsx`;
+
+    try {
+      const response = await apiClient.get<Blob>(
+        "/api/laporan-kinerja/export/excel",
+        {
+          params: selectedPeriode ? { id_periode: selectedPeriode } : undefined,
+          responseType: "blob",
+        }
+      );
+
+      const excelBlob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const blobUrl = window.URL.createObjectURL(excelBlob);
+
+      const anchor = document.createElement("a");
+      anchor.style.display = "none";
+      anchor.href = blobUrl;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(blobUrl);
+      }, 1000);
+
+      toast.success(`Rekapitulasi Excel (${fileName}) berhasil diunduh.`, {
+        id: loadingToastId,
+      });
+    } catch (err) {
+      const axiosErr = err as AxiosError;
+      if (
+        axiosErr.response?.status === 401 ||
+        axiosErr.response?.status === 403
+      ) {
+        toast.dismiss(loadingToastId);
+        handleUnauthorizedExit();
+        return;
+      }
+      toast.error("Gagal mengunduh rekapitulasi Excel dari server.", {
+        id: loadingToastId,
+      });
+    } finally {
+      setIsExportingExcel(false);
+    }
+  };
+
   // Label periode aktif terpilih
   const currentPeriodeObj = useMemo(
     () => periodeList.find((p) => p.id === selectedPeriode),
@@ -638,6 +722,22 @@ export default function AdminLaporanKinerjaPage() {
                   <ChevronDown className="w-4 h-4" />
                 </div>
               </div>
+
+              {/* Tombol Export Excel */}
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                disabled={isExportingExcel || isFetching}
+                className="bg-green-600 hover:bg-green-700 active:bg-green-800 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl inline-flex items-center gap-2 shadow-sm transition-all duration-200 cursor-pointer disabled:opacity-50"
+                title="Unduh Rekapitulasi Laporan Kinerja dalam format Excel (.xlsx)"
+              >
+                {isExportingExcel ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="w-4 h-4" />
+                )}
+                <span>Export Excel</span>
+              </button>
             </div>
           </div>
         </section>
@@ -816,7 +916,10 @@ export default function AdminLaporanKinerjaPage() {
                 const safeNamaUnit = sanitizePlainText(
                   laporan.unit_kerja?.nama_unit || "Unit Kerja Tidak Terdaftar"
                 );
-                const kategoriUnit = laporan.unit_kerja?.kategori_unit;
+                const kategoriLabel = resolveKategoriLabel(
+                  laporan.unit_kerja?.kategori ||
+                    laporan.unit_kerja?.kategori_unit
+                );
                 const safeNamaKegiatan = sanitizePlainText(
                   laporan.nama_kegiatan || "Tanpa Judul Kegiatan"
                 );
@@ -846,13 +949,20 @@ export default function AdminLaporanKinerjaPage() {
                             <span>{safeNamaUnit}</span>
                           </span>
 
-                          {kategoriUnit && (
+                          {kategoriLabel && (
                             <span
                               className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${getKategoriBadgeConfig(
-                                kategoriUnit
+                                kategoriLabel
                               )}`}
                             >
-                              Unit {kategoriUnit}
+                              Unit {kategoriLabel}
+                            </span>
+                          )}
+
+                          {laporan.bulan_laporan && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-[#0D47A1] border border-blue-200 shadow-2xs">
+                              <Calendar className="w-3 h-3 text-[#FBC02D]" />
+                              <span>Bulan {sanitizePlainText(laporan.bulan_laporan)}</span>
                             </span>
                           )}
                         </div>

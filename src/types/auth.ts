@@ -20,10 +20,13 @@ export interface UnitKerjaInfo {
   kategori_unit: string;
 }
 
+export type UserJabatan = "staf" | "pimpinan";
+
 export interface AuthUser {
   id: number;
   username: string;
   role: UserRole;
+  jabatan?: UserJabatan | string | null;
   id_fakultas: number | null;
   id_unit_kerja?: number | null;
   is_active?: boolean;

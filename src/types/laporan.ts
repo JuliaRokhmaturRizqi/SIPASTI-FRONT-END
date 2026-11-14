@@ -1,16 +1,69 @@
 export type LaporanKinerjaStatus = "Review" | "Revisi" | "Selesai";
 
+export type LaporanKinerjaWorkflowStatus =
+  | "menunggu_pimpinan"
+  | "revisi_pimpinan"
+  | "menunggu_admin"
+  | "revisi_admin"
+  | "selesai";
+
+export interface IdentitasLaporan {
+  penanggung_jawab?: string;
+  penyusun?: string;
+  nama_unit?: string;
+  [key: string]: string | undefined;
+}
+
+export interface PembahasanRow {
+  aspek: string;
+  realisasi: string;
+  analisis: string;
+  link: string;
+}
+
+export interface KendalaRow {
+  kendala: string;
+  penyebab: string;
+  dampak: string;
+  upaya: string;
+}
+
+export interface DukunganRow {
+  jenis: string;
+  bentuk: string;
+  pihak: string;
+}
+
+export interface TindakLanjutRow {
+  solusi: string;
+  pic: string;
+  target: string;
+  indikator: string;
+}
+
 export interface LaporanKinerjaItem {
   id: number;
   id_unit_kerja: number;
   id_periode: number;
-  nama_kegiatan: string;
+  bulan_laporan?: string | null;
+  status_laporan?: LaporanKinerjaWorkflowStatus | null;
+  identitas_laporan?: IdentitasLaporan | null;
+  pembahasan_json?: PembahasanRow[] | null;
+  kendala_json?: KendalaRow[] | null;
+  dukungan_json?: DukunganRow[] | null;
+  tindak_lanjut_json?: TindakLanjutRow[] | null;
+  kesimpulan?: string | null;
+  rekomendasi?: string | null;
+  ttd_penyusun_path?: string | null;
+  ttd_pimpinan_path?: string | null;
+  nama_kegiatan?: string | null;
   uraian?: string | null;
   link_bukti?: string | null;
   kendala?: string | null;
   dukungan?: string | null;
   tindak_lanjut?: string | null;
   nama_penandatangan?: string | null;
+  ttd_image_path?: string | null;
   status: LaporanKinerjaStatus;
   catatan_revisi?: string | null;
   created_at?: string;
@@ -18,7 +71,10 @@ export interface LaporanKinerjaItem {
   unit_kerja?: {
     id: number;
     nama_unit: string;
-    kategori_unit: string;
+    id_kategori?: number | null;
+    kategori_unit?: string | { id?: number; nama_kategori?: string } | null;
+    kategori?: { id?: number; nama_kategori?: string } | null;
+    kategoriUnit?: { id?: number; nama_kategori?: string } | null;
   } | null;
   periode_akademik?: {
     id: number;
