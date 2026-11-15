@@ -11,6 +11,8 @@ export interface IdentitasLaporan {
   penanggung_jawab?: string;
   penyusun?: string;
   nama_unit?: string;
+  nama_kegiatan?: string;
+  ringkasan_pelaksanaan?: string;
   [key: string]: string | undefined;
 }
 
@@ -32,6 +34,7 @@ export interface DukunganRow {
   jenis: string;
   bentuk: string;
   pihak: string;
+  prioritas?: string;
 }
 
 export interface TindakLanjutRow {
@@ -48,6 +51,7 @@ export interface LaporanKinerjaItem {
   bulan_laporan?: string | null;
   status_laporan?: LaporanKinerjaWorkflowStatus | null;
   identitas_laporan?: IdentitasLaporan | null;
+  ringkasan_pelaksanaan?: string | null;
   pembahasan_json?: PembahasanRow[] | null;
   kendala_json?: KendalaRow[] | null;
   dukungan_json?: DukunganRow[] | null;
@@ -65,6 +69,7 @@ export interface LaporanKinerjaItem {
   nama_penandatangan?: string | null;
   ttd_image_path?: string | null;
   status: LaporanKinerjaStatus;
+  catatan_admin?: string | null;
   catatan_revisi?: string | null;
   created_at?: string;
   updated_at?: string;

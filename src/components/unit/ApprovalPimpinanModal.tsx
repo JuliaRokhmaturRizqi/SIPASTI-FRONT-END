@@ -208,6 +208,19 @@ export default function ApprovalPimpinanModal({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
+              <div className="rounded-xl bg-slate-50 border border-slate-200/80 p-3 sm:col-span-2">
+                <span className="text-[11px] text-slate-500 block">
+                  Nama Kegiatan / Program
+                </span>
+                <strong className="text-slate-900 block mt-0.5">
+                  {sanitizePlainText(
+                    laporan.nama_kegiatan ||
+                      laporan.identitas_laporan?.nama_kegiatan ||
+                      "-"
+                  )}
+                </strong>
+              </div>
+
               <div className="rounded-xl bg-slate-50 border border-slate-200/80 p-3">
                 <span className="text-[11px] text-slate-500 block">
                   Unit Kerja
@@ -271,6 +284,23 @@ export default function ApprovalPimpinanModal({
               </div>
             )}
           </section>
+
+          {/* Ringkasan Pelaksanaan */}
+          {(laporan.ringkasan_pelaksanaan ||
+            laporan.identitas_laporan?.ringkasan_pelaksanaan) && (
+            <section className="bg-white rounded-2xl border border-slate-200 p-5 space-y-2 shadow-2xs">
+              <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-800">
+                Ringkasan Pelaksanaan
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-700 whitespace-pre-line leading-relaxed">
+                {sanitizePlainText(
+                  laporan.ringkasan_pelaksanaan ||
+                    laporan.identitas_laporan?.ringkasan_pelaksanaan ||
+                    ""
+                )}
+              </p>
+            </section>
+          )}
 
           {/* 2. Tabel Pembahasan */}
           <section className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3 shadow-2xs">
@@ -401,6 +431,7 @@ export default function ApprovalPimpinanModal({
                       <th className="py-2.5 px-3 font-bold">Jenis</th>
                       <th className="py-2.5 px-3 font-bold">Bentuk</th>
                       <th className="py-2.5 px-3 font-bold">Pihak Terkait</th>
+                      <th className="py-2.5 px-3 font-bold">Prioritas</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -417,6 +448,9 @@ export default function ApprovalPimpinanModal({
                         </td>
                         <td className="py-2.5 px-3 text-slate-700">
                           {sanitizePlainText(row.pihak || "-")}
+                        </td>
+                        <td className="py-2.5 px-3 font-semibold text-amber-900">
+                          {sanitizePlainText(row.prioritas || "-")}
                         </td>
                       </tr>
                     ))}

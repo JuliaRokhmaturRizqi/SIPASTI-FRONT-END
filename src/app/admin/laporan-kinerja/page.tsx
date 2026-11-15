@@ -68,10 +68,45 @@ function formatTanggalIndo(dateStr?: string | null): string {
 }
 
 /**
- * Helper konfigurasi visual badge status laporan kinerja
+ * Helper konfigurasi visual badge status laporan kinerja (Workflow Bertingkat + Legacy)
  */
-function getStatusBadgeConfig(status: LaporanKinerjaStatus) {
-  switch (status) {
+function getStatusBadgeConfig(laporan: LaporanKinerjaItem) {
+  switch (laporan.status_laporan) {
+    case "selesai":
+      return {
+        badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
+        dotClass: "bg-emerald-500",
+        label: "Selesai",
+      };
+    case "revisi_admin":
+      return {
+        badgeClass: "bg-red-50 text-red-700 border-red-200",
+        dotClass: "bg-red-500",
+        label: "Revisi Admin",
+      };
+    case "revisi_pimpinan":
+      return {
+        badgeClass: "bg-rose-50 text-rose-700 border-rose-200",
+        dotClass: "bg-rose-500",
+        label: "Revisi Pimpinan",
+      };
+    case "menunggu_admin":
+      return {
+        badgeClass: "bg-blue-50 text-[#0D47A1] border-blue-200",
+        dotClass: "bg-[#0D47A1] animate-pulse",
+        label: "Menunggu Validasi Admin",
+      };
+    case "menunggu_pimpinan":
+      return {
+        badgeClass: "bg-amber-50 text-amber-800 border-amber-300",
+        dotClass: "bg-amber-500 animate-pulse",
+        label: "Menunggu Review Pimpinan",
+      };
+    default:
+      break;
+  }
+
+  switch (laporan.status) {
     case "Selesai":
       return {
         badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -148,13 +183,15 @@ export default function AdminLaporanKinerjaPage() {
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  // State Modal Validasi
+  // State Modal Validasi Admin
   const [selectedLaporanForValidation, setSelectedLaporanForValidation] =
     useState<LaporanKinerjaItem | null>(null);
-  const [catatanRevisi, setCatatanRevisi] = useState<string>("");
+  const [validationStatus, setValidationStatus] = useState<
+    "selesai" | "revisi_admin"
+  >("selesai");
+  const [catatanAdmin, setCatatanAdmin] = useState<string>("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState<boolean>(false);
-  const [isRejectMode, setIsRejectMode] = useState<boolean>(false);
 
   // State Unduh PDF & Export Excel
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
@@ -352,16 +389,51 @@ export default function AdminLaporanKinerjaPage() {
   // 4 Kartu Statistik berdasarkan seluruh data laporan pada periode terpilih
   const stats = useMemo(() => {
     const total = laporanList.length;
-    const review = laporanList.filter((item) => item.status === "Review").length;
-    const revisi = laporanList.filter((item) => item.status === "Revisi").length;
-    const selesai = laporanList.filter((item) => item.status === "Selesai").length;
+    const menungguAdmin = laporanList.filter(
+      (item) => item.status_laporan === "menunggu_admin"
+    ).length;
+    const menungguPimpinan = laporanList.filter(
+      (item) => item.status_laporan === "menunggu_pimpinan"
+    ).length;
+    const revisiPimpinan = laporanList.filter(
+      (item) => item.status_laporan === "revisi_pimpinan"
+    ).length;
+    const revisiAdmin = laporanList.filter(
+      (item) => item.status_laporan === "revisi_admin"
+    ).length;
+    const selesai = laporanList.filter(
+      (item) =>
+        item.status_laporan === "selesai" ||
+        (!item.status_laporan && item.status === "Selesai")
+    ).length;
+    const revisi =
+      revisiPimpinan +
+      revisiAdmin +
+      laporanList.filter(
+        (item) => !item.status_laporan && item.status === "Revisi"
+      ).length;
+    const review =
+      menungguAdmin +
+      menungguPimpinan +
+      laporanList.filter(
+        (item) => !item.status_laporan && item.status === "Review"
+      ).length;
 
-    return { total, review, revisi, selesai };
+    return {
+      total,
+      review,
+      menungguAdmin,
+      menungguPimpinan,
+      revisi,
+      revisiPimpinan,
+      revisiAdmin,
+      selesai,
+    };
   }, [laporanList]);
 
-  // Filter & Search pada Daftar Laporan
+  // Filter, Search & Prioritas Urutan (menunggu_admin paling atas)
   const filteredLaporanList = useMemo(() => {
-    return laporanList.filter((item) => {
+    const filtered = laporanList.filter((item) => {
       // Filter Unit Kerja
       if (
         filterUnitKerja !== "ALL" &&
@@ -370,9 +442,18 @@ export default function AdminLaporanKinerjaPage() {
         return false;
       }
 
-      // Filter Status
-      if (filterStatus !== "ALL" && item.status !== filterStatus) {
-        return false;
+      // Filter Status (Workflow bertingkat)
+      if (filterStatus !== "ALL") {
+        const effectiveStatus =
+          item.status_laporan ||
+          (item.status === "Selesai"
+            ? "selesai"
+            : item.status === "Revisi"
+              ? "revisi_admin"
+              : "menunggu_admin");
+        if (effectiveStatus !== filterStatus) {
+          return false;
+        }
       }
 
       // Filter Query Pencarian
@@ -381,17 +462,39 @@ export default function AdminLaporanKinerjaPage() {
         const namaKegiatan = item.nama_kegiatan?.toLowerCase() || "";
         const uraian = item.uraian?.toLowerCase() || "";
         const namaUnit = item.unit_kerja?.nama_unit?.toLowerCase() || "";
-        const penandatangan = item.nama_penandatangan?.toLowerCase() || "";
+        const penandatangan = (
+          item.identitas_laporan?.penanggung_jawab ||
+          item.nama_penandatangan ||
+          ""
+        ).toLowerCase();
+        const penyusun = (
+          item.identitas_laporan?.penyusun || ""
+        ).toLowerCase();
+        const aspekText = Array.isArray(item.pembahasan_json)
+          ? item.pembahasan_json
+              .map((p) => `${p.aspek || ""} ${p.realisasi || ""}`)
+              .join(" ")
+              .toLowerCase()
+          : "";
 
         return (
           namaKegiatan.includes(query) ||
           uraian.includes(query) ||
           namaUnit.includes(query) ||
-          penandatangan.includes(query)
+          penandatangan.includes(query) ||
+          penyusun.includes(query) ||
+          aspekText.includes(query)
         );
       }
 
       return true;
+    });
+
+    // Prioritaskan laporan berstatus menunggu_admin di paling atas
+    return [...filtered].sort((a, b) => {
+      const aPriority = a.status_laporan === "menunggu_admin" ? 0 : 1;
+      const bPriority = b.status_laporan === "menunggu_admin" ? 0 : 1;
+      return aPriority - bPriority;
     });
   }, [laporanList, filterUnitKerja, filterStatus, searchQuery]);
 
@@ -400,39 +503,33 @@ export default function AdminLaporanKinerjaPage() {
    */
   const handleOpenValidationModal = (laporan: LaporanKinerjaItem) => {
     setSelectedLaporanForValidation(laporan);
-    setCatatanRevisi(laporan.catatan_revisi || "");
+    setValidationStatus("selesai");
+    setCatatanAdmin(laporan.catatan_admin || laporan.catatan_revisi || "");
     setValidationError(null);
-    setIsRejectMode(false);
   };
 
   const handleCloseValidationModal = () => {
     if (isValidating) return;
     setSelectedLaporanForValidation(null);
-    setCatatanRevisi("");
+    setValidationStatus("selesai");
+    setCatatanAdmin("");
     setValidationError(null);
-    setIsRejectMode(false);
   };
 
   /**
-   * Eksekusi Validasi:
-   * PATCH /api/laporan-kinerja/{id}/validasi
-   * Status: 'Selesai' | 'Revisi'
+   * Eksekusi Validasi Admin:
+   * POST /api/laporan-kinerja/{id}/validasi-admin
+   * Payload JSON: { status: 'selesai' | 'revisi_admin', catatan_admin?: string | null }
    */
-  const handleExecuteValidation = async (status: "Selesai" | "Revisi") => {
+  const handleExecuteValidation = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!selectedLaporanForValidation || isValidating) return;
 
-    // Jika memilih mode Revisi, pastikan catatan_revisi sudah diisi
-    if (status === "Revisi" && !isRejectMode) {
-      setIsRejectMode(true);
-      setValidationError(null);
-      return;
-    }
-
-    if (status === "Revisi") {
-      const trimmedReason = catatanRevisi.trim();
+    if (validationStatus === "revisi_admin") {
+      const trimmedReason = catatanAdmin.trim();
       if (!trimmedReason || trimmedReason.length < 5) {
         const errorMsg =
-          "Catatan revisi wajib diisi minimal 5 karakter apabila status ditetapkan menjadi Revisi.";
+          "Catatan revisi Admin wajib diisi minimal 5 karakter apabila laporan ditolak/direvisi.";
         setValidationError(errorMsg);
         toast.error(errorMsg);
         return;
@@ -444,18 +541,21 @@ export default function AdminLaporanKinerjaPage() {
 
     try {
       const payload = {
-        status,
-        catatan_revisi: status === "Revisi" ? catatanRevisi.trim() : null,
+        status: validationStatus,
+        catatan_admin:
+          validationStatus === "revisi_admin" ? catatanAdmin.trim() : null,
       };
 
-      const response = await apiClient.patch<LaporanKinerjaValidasiResponse>(
-        `/api/laporan-kinerja/${selectedLaporanForValidation.id}/validasi`,
+      const response = await apiClient.post<LaporanKinerjaValidasiResponse>(
+        `/api/laporan-kinerja/${selectedLaporanForValidation.id}/validasi-admin`,
         payload
       );
 
       const successMsg =
         response.data?.message ||
-        `Laporan berhasil diperbarui menjadi status ${status}.`;
+        (validationStatus === "selesai"
+          ? "Laporan kinerja telah disahkan oleh Admin."
+          : "Laporan kinerja dikembalikan untuk direvisi.");
       toast.success(successMsg);
 
       // Tutup modal dan refresh data laporan
@@ -844,7 +944,7 @@ export default function AdminLaporanKinerjaPage() {
             </div>
 
             {/* Dropdown Filter Status */}
-            <div className="relative min-w-[165px] sm:w-auto w-full">
+            <div className="relative min-w-[215px] sm:w-auto w-full">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                 <Filter className="w-4 h-4" />
               </div>
@@ -853,10 +953,20 @@ export default function AdminLaporanKinerjaPage() {
                 onChange={(e) => setFilterStatus(e.target.value)}
                 className="w-full pl-10 pr-8 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-semibold text-slate-800 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0D47A1]/20 focus:border-[#0D47A1] appearance-none cursor-pointer transition-all duration-200"
               >
-                <option value="ALL">Semua Status</option>
-                <option value="Review">Review ({stats.review})</option>
-                <option value="Revisi">Revisi ({stats.revisi})</option>
-                <option value="Selesai">Selesai ({stats.selesai})</option>
+                <option value="ALL">Semua Status ({stats.total})</option>
+                <option value="menunggu_admin">
+                  Menunggu Validasi Admin ({stats.menungguAdmin})
+                </option>
+                <option value="menunggu_pimpinan">
+                  Menunggu Review Pimpinan ({stats.menungguPimpinan})
+                </option>
+                <option value="revisi_pimpinan">
+                  Revisi Pimpinan ({stats.revisiPimpinan})
+                </option>
+                <option value="revisi_admin">
+                  Revisi Admin ({stats.revisiAdmin})
+                </option>
+                <option value="selesai">Selesai ({stats.selesai})</option>
               </select>
               <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400">
                 <ChevronDown className="w-4 h-4" />
@@ -912,7 +1022,7 @@ export default function AdminLaporanKinerjaPage() {
               </div>
             ) : (
               filteredLaporanList.map((laporan) => {
-                const statusBadge = getStatusBadgeConfig(laporan.status);
+                const statusBadge = getStatusBadgeConfig(laporan);
                 const safeNamaUnit = sanitizePlainText(
                   laporan.unit_kerja?.nama_unit || "Unit Kerja Tidak Terdaftar"
                 );
@@ -920,19 +1030,60 @@ export default function AdminLaporanKinerjaPage() {
                   laporan.unit_kerja?.kategori ||
                     laporan.unit_kerja?.kategori_unit
                 );
+                const fallbackTitle = laporan.bulan_laporan
+                  ? `Laporan Kinerja Bulan ${laporan.bulan_laporan}`
+                  : `Laporan Kinerja #${laporan.id}`;
                 const safeNamaKegiatan = sanitizePlainText(
-                  laporan.nama_kegiatan || "Tanpa Judul Kegiatan"
+                  laporan.nama_kegiatan || fallbackTitle
                 );
+                const pembahasanList = Array.isArray(laporan.pembahasan_json)
+                  ? laporan.pembahasan_json
+                  : [];
+                const kendalaList = Array.isArray(laporan.kendala_json)
+                  ? laporan.kendala_json
+                  : [];
+                const dukunganList = Array.isArray(laporan.dukungan_json)
+                  ? laporan.dukungan_json
+                  : [];
+                const tindakLanjutList = Array.isArray(laporan.tindak_lanjut_json)
+                  ? laporan.tindak_lanjut_json
+                  : [];
+                const firstAspek =
+                  pembahasanList.length > 0
+                    ? `${pembahasanList.length} Aspek Kinerja — ${pembahasanList[0].aspek || ""}${pembahasanList[0].realisasi ? `: ${pembahasanList[0].realisasi}` : ""}`
+                    : null;
+                const safeRingkasan =
+                  laporan.ringkasan_pelaksanaan ||
+                  laporan.identitas_laporan?.ringkasan_pelaksanaan ||
+                  null;
                 const safeUraian = sanitizePlainText(
-                  laporan.uraian || "Tidak ada uraian kegiatan."
+                  safeRingkasan ||
+                    firstAspek ||
+                    laporan.uraian ||
+                    "Laporan kinerja unit kerja terstruktur."
                 );
+                const penanggungJawab =
+                  laporan.identitas_laporan?.penanggung_jawab ||
+                  laporan.nama_penandatangan ||
+                  null;
+                const penyusun = laporan.identitas_laporan?.penyusun || null;
                 const tanggalFormat = formatTanggalIndo(
                   laporan.updated_at || laporan.created_at
                 );
                 const safeCatatanRevisi = sanitizePlainText(
-                  laporan.catatan_revisi || ""
+                  laporan.catatan_admin || laporan.catatan_revisi || ""
                 );
                 const isDownloadingThis = downloadingId === laporan.id;
+                const isReadyForAdmin =
+                  laporan.status_laporan === "menunggu_admin" ||
+                  (!laporan.status_laporan && laporan.status === "Review");
+                const isRevisionStatus =
+                  laporan.status_laporan === "revisi_admin" ||
+                  laporan.status_laporan === "revisi_pimpinan" ||
+                  (!laporan.status_laporan && laporan.status === "Revisi");
+                const isCompletedStatus =
+                  laporan.status_laporan === "selesai" ||
+                  (!laporan.status_laporan && laporan.status === "Selesai");
 
                 return (
                   <article
@@ -989,39 +1140,78 @@ export default function AdminLaporanKinerjaPage() {
                       {safeUraian}
                     </p>
 
-                    {/* Rincian Kendala & Dukungan jika ada */}
-                    {(laporan.kendala || laporan.dukungan) && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-slate-50/90 p-3.5 rounded-xl border border-slate-100">
-                        {laporan.kendala && (
-                          <div>
-                            <span className="font-semibold text-slate-700 block mb-0.5">
-                              Kendala Pelaksanaan:
+                    {/* Ringkasan Identitas & Tabel Dinamis / Legacy */}
+                    {pembahasanList.length > 0 ? (
+                      <div className="rounded-xl bg-slate-50/90 border border-slate-200/70 p-3.5 space-y-2 text-xs">
+                        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-slate-600">
+                          {penanggungJawab && (
+                            <span>
+                              Penanggung Jawab:{" "}
+                              <strong className="text-slate-900">
+                                {sanitizePlainText(penanggungJawab)}
+                              </strong>
                             </span>
-                            <span className="text-slate-600 line-clamp-2 leading-relaxed">
-                              {sanitizePlainText(laporan.kendala)}
+                          )}
+                          {penyusun && (
+                            <span>
+                              Penyusun:{" "}
+                              <strong className="text-slate-900">
+                                {sanitizePlainText(penyusun)}
+                              </strong>
                             </span>
-                          </div>
-                        )}
-                        {laporan.dukungan && (
-                          <div>
-                            <span className="font-semibold text-slate-700 block mb-0.5">
-                              Dukungan Dibutuhkan:
-                            </span>
-                            <span className="text-slate-600 line-clamp-2 leading-relaxed">
-                              {sanitizePlainText(laporan.dukungan)}
-                            </span>
-                          </div>
-                        )}
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                          <span className="px-2 py-0.5 rounded-md bg-blue-50 text-[#0D47A1] border border-blue-200 font-semibold">
+                            {pembahasanList.length} Pembahasan
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200 font-semibold">
+                            {kendalaList.length} Kendala
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 font-semibold">
+                            {dukunganList.length} Dukungan
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
+                            {tindakLanjutList.length} Tindak Lanjut
+                          </span>
+                        </div>
                       </div>
+                    ) : (
+                      (laporan.kendala || laporan.dukungan) && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-slate-50/90 p-3.5 rounded-xl border border-slate-100">
+                          {laporan.kendala && (
+                            <div>
+                              <span className="font-semibold text-slate-700 block mb-0.5">
+                                Kendala Pelaksanaan:
+                              </span>
+                              <span className="text-slate-600 line-clamp-2 leading-relaxed">
+                                {sanitizePlainText(laporan.kendala)}
+                              </span>
+                            </div>
+                          )}
+                          {laporan.dukungan && (
+                            <div>
+                              <span className="font-semibold text-slate-700 block mb-0.5">
+                                Dukungan Dibutuhkan:
+                              </span>
+                              <span className="text-slate-600 line-clamp-2 leading-relaxed">
+                                {sanitizePlainText(laporan.dukungan)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )
                     )}
 
                     {/* Alert Box Catatan Revisi jika berstatus Revisi */}
-                    {laporan.status === "Revisi" && (
+                    {isRevisionStatus && (
                       <div className="rounded-xl bg-red-50 text-red-700 border border-red-200 p-3.5 flex items-start gap-2.5 text-xs">
                         <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
                         <div className="space-y-0.5 flex-1">
                           <p className="font-bold text-red-800">
-                            Catatan Revisi dari Admin:
+                            {laporan.status_laporan === "revisi_pimpinan"
+                              ? "Catatan Revisi dari Pimpinan:"
+                              : "Catatan Revisi dari Admin:"}
                           </p>
                           <p className="leading-relaxed">
                             {safeCatatanRevisi ||
@@ -1042,13 +1232,13 @@ export default function AdminLaporanKinerjaPage() {
                           </span>
                         )}
 
-                        {laporan.nama_penandatangan && (
+                        {penanggungJawab && (
                           <span className="inline-flex items-center gap-1.5 text-slate-600">
                             <UserCheck className="w-3.5 h-3.5 text-slate-400" />
                             <span>
                               Pimpinan:{" "}
                               <strong className="text-slate-800 font-semibold">
-                                {sanitizePlainText(laporan.nama_penandatangan)}
+                                {sanitizePlainText(penanggungJawab)}
                               </strong>
                             </span>
                           </span>
@@ -1067,51 +1257,43 @@ export default function AdminLaporanKinerjaPage() {
                         )}
                       </div>
 
-                      {/* Tombol Aksi: Validasi (Review) & Unduh PDF Resmi (Selesai) */}
-                      <div className="flex items-center gap-2 self-end sm:self-auto">
-                        {/* Tombol Validasi (Review) dengan warna kontras */}
-                        {laporan.status === "Review" && (
+                      {/* Tombol Aksi: Pratinjau PDF (Selalu tersedia) & Validasi/Review (menunggu_admin) */}
+                      <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadPdf(laporan)}
+                          disabled={isDownloadingThis}
+                          className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm shadow-xs transition-all duration-200 cursor-pointer disabled:opacity-50 ${
+                            isCompletedStatus
+                              ? "bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white"
+                              : "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200"
+                          }`}
+                        >
+                          {isDownloadingThis ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Memuat PDF...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Download className="w-4 h-4 text-red-600" />
+                              <span>
+                                {isCompletedStatus
+                                  ? "Unduh PDF Resmi"
+                                  : "Pratinjau PDF"}
+                              </span>
+                            </>
+                          )}
+                        </button>
+
+                        {isReadyForAdmin && (
                           <button
                             type="button"
                             onClick={() => handleOpenValidationModal(laporan)}
                             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0D47A1] hover:bg-[#1565C0] active:bg-blue-900 text-white font-semibold text-xs sm:text-sm shadow-sm transition-all duration-200 cursor-pointer"
                           >
                             <ShieldAlert className="w-4 h-4 text-[#FBC02D]" />
-                            <span>Validasi Laporan</span>
-                          </button>
-                        )}
-
-                        {/* Tombol Unduh PDF Resmi (Selesai) menggunakan warna hijau sesuai status */}
-                        {laporan.status === "Selesai" && (
-                          <button
-                            type="button"
-                            onClick={() => handleDownloadPdf(laporan)}
-                            disabled={isDownloadingThis}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold text-xs sm:text-sm shadow-sm transition-all duration-200 cursor-pointer disabled:opacity-50"
-                          >
-                            {isDownloadingThis ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin text-white" />
-                                <span>Mengunduh PDF...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Download className="w-4 h-4" />
-                                <span>Unduh PDF Resmi</span>
-                              </>
-                            )}
-                          </button>
-                        )}
-
-                        {/* Opsi Tinjau Kembali jika status Revisi */}
-                        {laporan.status === "Revisi" && (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenValidationModal(laporan)}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-all duration-200 cursor-pointer shadow-2xs"
-                          >
-                            <FileCheck2 className="w-3.5 h-3.5 text-slate-500" />
-                            <span>Tinjau Kembali</span>
+                            <span>Validasi/Review</span>
                           </button>
                         )}
                       </div>
@@ -1153,208 +1335,306 @@ export default function AdminLaporanKinerjaPage() {
             </div>
 
             {/* Isi Detail Laporan (Scrollable) */}
-            <div className="p-6 space-y-5 overflow-y-auto flex-1 text-xs sm:text-sm">
-              {/* Unit Kerja & Info Meta */}
-              <div className="p-3.5 rounded-xl bg-blue-50/60 border border-blue-100 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#0D47A1] uppercase tracking-wider">
-                    {selectedLaporanForValidation.unit_kerja?.nama_unit ||
-                      "Unit Kerja"}
-                  </span>
-                  <span className="text-[11px] px-2.5 py-0.5 rounded-md font-semibold bg-white text-[#0D47A1] border border-blue-200">
-                    Periode: {currentPeriodeObj?.nama_periode || "-"}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-600">
-                  Penandatangan:{" "}
-                  <strong>
-                    {selectedLaporanForValidation.nama_penandatangan || "-"}
-                  </strong>
-                </p>
-              </div>
-
-              {/* Judul Kegiatan */}
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                  Nama Kegiatan
-                </label>
-                <p className="font-bold text-slate-900 text-sm sm:text-base">
-                  {selectedLaporanForValidation.nama_kegiatan}
-                </p>
-              </div>
-
-              {/* Uraian Kegiatan */}
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                  Uraian Kegiatan
-                </label>
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 whitespace-pre-wrap leading-relaxed">
-                  {selectedLaporanForValidation.uraian ||
-                    "Tidak ada uraian kegiatan."}
-                </div>
-              </div>
-
-              {/* Kendala & Dukungan jika ada */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                    Kendala
-                  </label>
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 whitespace-pre-wrap leading-relaxed">
-                    {selectedLaporanForValidation.kendala || "-"}
+            <form
+              onSubmit={handleExecuteValidation}
+              className="flex flex-col flex-1 overflow-hidden"
+            >
+              <div className="p-6 space-y-5 overflow-y-auto flex-1 text-xs sm:text-sm">
+                {/* Unit Kerja & Info Meta */}
+                <div className="p-4 rounded-xl bg-blue-50/60 border border-blue-100 space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-[#0D47A1] uppercase tracking-wider">
+                      {selectedLaporanForValidation.unit_kerja?.nama_unit ||
+                        selectedLaporanForValidation.identitas_laporan
+                          ?.nama_unit ||
+                        "Unit Kerja"}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] px-2.5 py-0.5 rounded-md font-semibold bg-white text-[#0D47A1] border border-blue-200">
+                        Periode: {currentPeriodeObj?.nama_periode || "-"}
+                        {selectedLaporanForValidation.bulan_laporan
+                          ? ` • Bulan ${selectedLaporanForValidation.bulan_laporan}`
+                          : ""}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleDownloadPdf(selectedLaporanForValidation)
+                        }
+                        disabled={
+                          downloadingId === selectedLaporanForValidation.id
+                        }
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-[11px] font-semibold cursor-pointer"
+                      >
+                        <Download className="w-3 h-3 text-red-600" />
+                        <span>Pratinjau PDF</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600">
+                    <p className="sm:col-span-2">
+                      Nama Kegiatan:{" "}
+                      <strong className="text-slate-900">
+                        {selectedLaporanForValidation.nama_kegiatan ||
+                          selectedLaporanForValidation.identitas_laporan
+                            ?.nama_kegiatan ||
+                          "-"}
+                      </strong>
+                    </p>
+                    <p>
+                      Penanggung Jawab:{" "}
+                      <strong className="text-slate-900">
+                        {selectedLaporanForValidation.identitas_laporan
+                          ?.penanggung_jawab ||
+                          selectedLaporanForValidation.nama_penandatangan ||
+                          "-"}
+                      </strong>
+                    </p>
+                    <p>
+                      Penyusun (Staf):{" "}
+                      <strong className="text-slate-900">
+                        {selectedLaporanForValidation.identitas_laporan
+                          ?.penyusun || "-"}
+                      </strong>
+                    </p>
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                    Dukungan yang Dibutuhkan
-                  </label>
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 whitespace-pre-wrap leading-relaxed">
-                    {selectedLaporanForValidation.dukungan || "-"}
+                {/* Ringkasan Pelaksanaan */}
+                {(selectedLaporanForValidation.ringkasan_pelaksanaan ||
+                  selectedLaporanForValidation.identitas_laporan
+                    ?.ringkasan_pelaksanaan) && (
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                      Ringkasan Pelaksanaan
+                    </label>
+                    <p className="whitespace-pre-line leading-relaxed text-xs">
+                      {selectedLaporanForValidation.ringkasan_pelaksanaan ||
+                        selectedLaporanForValidation.identitas_laporan
+                          ?.ringkasan_pelaksanaan}
+                    </p>
                   </div>
-                </div>
-              </div>
-
-              {/* Tindak Lanjut jika ada */}
-              {selectedLaporanForValidation.tindak_lanjut && (
-                <div>
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                    Rencana Tindak Lanjut
-                  </label>
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 whitespace-pre-wrap leading-relaxed">
-                    {selectedLaporanForValidation.tindak_lanjut}
-                  </div>
-                </div>
-              )}
-
-              {/* Link Bukti Kegiatan jika ada */}
-              {selectedLaporanForValidation.link_bukti && (
-                <div>
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                    Link Bukti Kegiatan
-                  </label>
-                  <a
-                    href={selectedLaporanForValidation.link_bukti}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-[#0D47A1] font-semibold hover:bg-[#0D47A1] hover:text-white transition-all duration-200"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span>{selectedLaporanForValidation.link_bukti}</span>
-                  </a>
-                </div>
-              )}
-
-              {/* Box Form Catatan Revisi */}
-              <div
-                className={`rounded-xl p-4 space-y-2 border transition ${
-                  isRejectMode
-                    ? "bg-red-50/70 border-red-300"
-                    : "bg-slate-50 border-slate-200"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <label
-                    htmlFor="catatan-revisi-unit"
-                    className={`text-xs font-bold uppercase tracking-wider ${
-                      isRejectMode ? "text-red-900" : "text-slate-700"
-                    }`}
-                  >
-                    Catatan Revisi / Instruksi Perbaikan{" "}
-                    {isRejectMode && <span className="text-red-600">*</span>}
-                  </label>
-                  <span className="text-[11px] text-slate-400 font-mono">
-                    {catatanRevisi.length}/2000
-                  </span>
-                </div>
-
-                <textarea
-                  id="catatan-revisi-unit"
-                  rows={3}
-                  maxLength={2000}
-                  disabled={isValidating}
-                  value={catatanRevisi}
-                  onChange={(e) => {
-                    setCatatanRevisi(e.target.value);
-                    if (validationError) setValidationError(null);
-                  }}
-                  placeholder={
-                    isRejectMode
-                      ? "Wajib tuliskan instruksi revisi yang jelas untuk unit terkait..."
-                      : "Tuliskan catatan evaluasi jika ingin mengembalikan laporan..."
-                  }
-                  className="w-full rounded-xl bg-white border border-slate-300 p-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 disabled:opacity-50"
-                />
-
-                {validationError && (
-                  <p
-                    role="alert"
-                    className="text-xs font-semibold text-red-600 flex items-center gap-1.5 pt-1"
-                  >
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    <span>{validationError}</span>
-                  </p>
                 )}
-              </div>
-            </div>
 
-            {/* Footer Modal: Tombol Aksi */}
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2.5">
-              <button
-                type="button"
-                onClick={handleCloseValidationModal}
-                disabled={isValidating}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs sm:text-sm font-semibold transition cursor-pointer disabled:opacity-50"
-              >
-                Batal
-              </button>
-
-              {/* Tombol Kembalikan (Revisi) */}
-              <button
-                type="button"
-                onClick={() => handleExecuteValidation("Revisi")}
-                disabled={isValidating}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xs sm:text-sm font-semibold shadow-xs transition cursor-pointer disabled:opacity-50"
-              >
-                {isValidating && isRejectMode ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin text-white" />
-                    <span>Mengirim Revisi...</span>
-                  </>
+                {/* Tabel Pembahasan (JSON) atau Legacy */}
+                {Array.isArray(selectedLaporanForValidation.pembahasan_json) &&
+                selectedLaporanForValidation.pembahasan_json.length > 0 ? (
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                      Pembahasan &amp; Realisasi Kinerja
+                    </label>
+                    <div className="overflow-x-auto rounded-xl border border-slate-200">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-slate-100 text-slate-700 border-b border-slate-200">
+                            <th className="py-2 px-3 font-bold">Aspek</th>
+                            <th className="py-2 px-3 font-bold">Realisasi</th>
+                            <th className="py-2 px-3 font-bold">Analisis</th>
+                            <th className="py-2 px-3 font-bold">Bukti</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {selectedLaporanForValidation.pembahasan_json.map(
+                            (row, idx) => (
+                              <tr key={idx} className="align-top">
+                                <td className="py-2 px-3 font-semibold text-slate-900">
+                                  {sanitizePlainText(row.aspek || "-")}
+                                </td>
+                                <td className="py-2 px-3 text-slate-700 whitespace-pre-line">
+                                  {sanitizePlainText(row.realisasi || "-")}
+                                </td>
+                                <td className="py-2 px-3 text-slate-600 whitespace-pre-line">
+                                  {sanitizePlainText(row.analisis || "-")}
+                                </td>
+                                <td className="py-2 px-3">
+                                  {row.link ? (
+                                    <a
+                                      href={row.link}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 text-[#0D47A1] hover:underline font-semibold"
+                                    >
+                                      <ExternalLink className="w-3 h-3" />
+                                      <span>Link</span>
+                                    </a>
+                                  ) : (
+                                    "-"
+                                  )}
+                                </td>
+                              </tr>
+                            )
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 ) : (
                   <>
-                    <XCircle className="w-4 h-4" />
-                    <span>
-                      {isRejectMode
-                        ? "Kirim Catatan Revisi"
-                        : "Kembalikan (Revisi)"}
-                    </span>
+                    <div>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                        Nama Kegiatan
+                      </label>
+                      <p className="font-bold text-slate-900 text-sm sm:text-base">
+                        {selectedLaporanForValidation.nama_kegiatan}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                        Uraian Kegiatan
+                      </label>
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 whitespace-pre-wrap leading-relaxed">
+                        {selectedLaporanForValidation.uraian ||
+                          "Tidak ada uraian kegiatan."}
+                      </div>
+                    </div>
                   </>
                 )}
-              </button>
 
-              {/* Tombol Setujui (Selesai) */}
-              {!isRejectMode && (
+                {/* Kesimpulan & Rekomendasi */}
+                {(selectedLaporanForValidation.kesimpulan ||
+                  selectedLaporanForValidation.rekomendasi) && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                        Kesimpulan
+                      </span>
+                      <p className="text-xs text-slate-700 whitespace-pre-line">
+                        {selectedLaporanForValidation.kesimpulan || "-"}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                        Rekomendasi
+                      </span>
+                      <p className="text-xs text-slate-700 whitespace-pre-line">
+                        {selectedLaporanForValidation.rekomendasi || "-"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Form Keputusan Validasi Admin */}
+                <div className="rounded-xl p-4 space-y-3 border border-slate-200 bg-slate-50">
+                  <div>
+                    <label
+                      htmlFor="status-validasi-admin"
+                      className="text-xs font-bold uppercase tracking-wider text-slate-700 block mb-1.5"
+                    >
+                      Keputusan Validasi Admin{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      id="status-validasi-admin"
+                      value={validationStatus}
+                      disabled={isValidating}
+                      onChange={(e) => {
+                        setValidationStatus(
+                          e.target.value as "selesai" | "revisi_admin"
+                        );
+                        if (validationError) setValidationError(null);
+                      }}
+                      className="w-full rounded-xl bg-white border border-slate-300 px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20"
+                    >
+                      <option value="selesai">
+                        Selesai (Sahkan Laporan Kinerja)
+                      </option>
+                      <option value="revisi_admin">
+                        Tolak / Revisi (Kembalikan ke Unit)
+                      </option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label
+                        htmlFor="catatan-admin-unit"
+                        className={`text-xs font-bold uppercase tracking-wider ${
+                          validationStatus === "revisi_admin"
+                            ? "text-red-900"
+                            : "text-slate-700"
+                        }`}
+                      >
+                        Catatan Admin{" "}
+                        {validationStatus === "revisi_admin" && (
+                          <span className="text-red-600">*</span>
+                        )}
+                      </label>
+                      <span className="text-[11px] text-slate-400 font-mono">
+                        {catatanAdmin.length}/2000
+                      </span>
+                    </div>
+
+                    <textarea
+                      id="catatan-admin-unit"
+                      rows={3}
+                      maxLength={2000}
+                      disabled={isValidating}
+                      required={validationStatus === "revisi_admin"}
+                      value={catatanAdmin}
+                      onChange={(e) => {
+                        setCatatanAdmin(e.target.value);
+                        if (validationError) setValidationError(null);
+                      }}
+                      placeholder={
+                        validationStatus === "revisi_admin"
+                          ? "Wajib tuliskan instruksi revisi yang jelas untuk unit terkait..."
+                          : "Opsional: tuliskan catatan pengesahan jika diperlukan..."
+                      }
+                      className="w-full rounded-xl bg-white border border-slate-300 p-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 disabled:opacity-50"
+                    />
+
+                    {validationError && (
+                      <p
+                        role="alert"
+                        className="text-xs font-semibold text-red-600 flex items-center gap-1.5 pt-1"
+                      >
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>{validationError}</span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer Modal: Tombol Aksi */}
+              <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2.5">
                 <button
                   type="button"
-                  onClick={() => handleExecuteValidation("Selesai")}
+                  onClick={handleCloseValidationModal}
                   disabled={isValidating}
-                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs sm:text-sm font-semibold shadow-xs transition cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs sm:text-sm font-semibold transition cursor-pointer disabled:opacity-50"
+                >
+                  Batal
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isValidating}
+                  className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-white text-xs sm:text-sm font-semibold shadow-xs transition cursor-pointer disabled:opacity-50 ${
+                    validationStatus === "revisi_admin"
+                      ? "bg-red-600 hover:bg-red-700 active:bg-red-800"
+                      : "bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800"
+                  }`}
                 >
                   {isValidating ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin text-white" />
-                      <span>Menyetujui...</span>
+                      <span>Memproses...</span>
+                    </>
+                  ) : validationStatus === "revisi_admin" ? (
+                    <>
+                      <XCircle className="w-4 h-4" />
+                      <span>Kirim Revisi Admin</span>
                     </>
                   ) : (
                     <>
                       <CheckCircle2 className="w-4 h-4" />
-                      <span>Setujui (Selesai)</span>
+                      <span>Simpan &amp; Sahkan (Selesai)</span>
                     </>
                   )}
                 </button>
-              )}
-            </div>
+              </div>
+            </form>
           </div>
         </div>
       )}

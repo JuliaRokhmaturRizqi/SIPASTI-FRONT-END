@@ -79,6 +79,7 @@ const emptyDukungan = (): DukunganRow => ({
   jenis: "",
   bentuk: "",
   pihak: "",
+  prioritas: "Sedang",
 });
 
 const emptyTindakLanjut = (): TindakLanjutRow => ({
@@ -107,8 +108,12 @@ function BuatLaporanKinerjaContent() {
   const [periodeList, setPeriodeList] = useState<PeriodeOption[]>([]);
   const [idPeriode, setIdPeriode] = useState<string>("");
   const [bulanLaporan, setBulanLaporan] = useState<string>("");
+  const [namaKegiatan, setNamaKegiatan] = useState<string>("");
   const [penanggungJawab, setPenanggungJawab] = useState<string>("");
   const [penyusun, setPenyusun] = useState<string>("");
+
+  // State Ringkasan Pelaksanaan
+  const [ringkasanPelaksanaan, setRingkasanPelaksanaan] = useState<string>("");
 
   // State Tabel Dinamis (Array of Objects)
   const [pembahasan, setPembahasan] = useState<PembahasanRow[]>([
@@ -129,6 +134,25 @@ function BuatLaporanKinerjaContent() {
   });
   const [existingTtdPath, setExistingTtdPath] = useState<string | null>(null);
   const [catatanRevisi, setCatatanRevisi] = useState<string | null>(null);
+  const [formResetKey, setFormResetKey] = useState<number>(0);
+
+  const resetFormState = useCallback(() => {
+    setBulanLaporan("");
+    setNamaKegiatan("");
+    setPenanggungJawab("");
+    setPenyusun("");
+    setRingkasanPelaksanaan("");
+    setPembahasan([emptyPembahasan()]);
+    setKendala([emptyKendala()]);
+    setDukungan([emptyDukungan()]);
+    setTindakLanjut([emptyTindakLanjut()]);
+    setKesimpulan("");
+    setRekomendasi("");
+    setSignature({ file: null, base64: null });
+    setExistingTtdPath(null);
+    setCatatanRevisi(null);
+    setFormResetKey((prev) => prev + 1);
+  }, []);
 
   const handleUnauthorizedExit = useCallback(() => {
     clearAuthSession();
@@ -163,9 +187,13 @@ function BuatLaporanKinerjaContent() {
       setIsCheckingAuth(false);
       setIsLoadingInitial(true);
 
+      if (!editId) {
+        resetFormState();
+      }
+
       try {
         const periodeRes = await apiClient.get<PeriodeListResponse>(
-          "/api/periode-akademik"
+          "/api/periode"
         );
         const rawPeriodes: PeriodeApiRecord[] = periodeRes.data?.data || [];
         const mapped: PeriodeOption[] = rawPeriodes.map((p) => ({
@@ -197,6 +225,17 @@ function BuatLaporanKinerjaContent() {
           if (item && isMounted) {
             setIdPeriode(String(item.id_periode));
             setBulanLaporan(item.bulan_laporan || "");
+            setNamaKegiatan(
+              item.nama_kegiatan ||
+                item.identitas_laporan?.nama_kegiatan ||
+                ""
+            );
+            setRingkasanPelaksanaan(
+              item.ringkasan_pelaksanaan ||
+                item.identitas_laporan?.ringkasan_pelaksanaan ||
+                item.uraian ||
+                ""
+            );
             setPenanggungJawab(
               item.identitas_laporan?.penanggung_jawab ||
                 item.nama_penandatangan ||
@@ -235,6 +274,7 @@ function BuatLaporanKinerjaContent() {
                       jenis: row.jenis || "",
                       bentuk: row.bentuk || "",
                       pihak: row.pihak || "",
+                      prioritas: row.prioritas || "Sedang",
                     }))
                   : []
               );
@@ -282,7 +322,7 @@ function BuatLaporanKinerjaContent() {
     return () => {
       isMounted = false;
     };
-  }, [editId, initialPeriodeParam, handleUnauthorizedExit, router]);
+  }, [editId, initialPeriodeParam, handleUnauthorizedExit, resetFormState, router]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -347,6 +387,10 @@ function BuatLaporanKinerjaContent() {
       toast.error("Bulan laporan wajib dipilih.");
       return;
     }
+    if (!namaKegiatan.trim()) {
+      toast.error("Nama Kegiatan/Program wajib diisi.");
+      return;
+    }
     if (!penanggungJawab.trim() || !penyusun.trim()) {
       toast.error("Nama Penanggung Jawab dan Penyusun wajib diisi.");
       return;
@@ -373,6 +417,8 @@ function BuatLaporanKinerjaContent() {
       const formData = new FormData();
       formData.append("id_periode", idPeriode);
       formData.append("bulan_laporan", bulanLaporan);
+      formData.append("nama_kegiatan", namaKegiatan.trim());
+      formData.append("ringkasan_pelaksanaan", ringkasanPelaksanaan.trim());
 
       const safeNamaUnit = user?.unit_kerja?.nama_unit || "Unit Kerja";
       formData.append(
@@ -381,6 +427,8 @@ function BuatLaporanKinerjaContent() {
           penanggung_jawab: penanggungJawab.trim(),
           penyusun: penyusun.trim(),
           nama_unit: safeNamaUnit,
+          nama_kegiatan: namaKegiatan.trim(),
+          ringkasan_pelaksanaan: ringkasanPelaksanaan.trim(),
         })
       );
 
@@ -423,8 +471,9 @@ function BuatLaporanKinerjaContent() {
 
       // Kompatibilitas ringkasan kartu
       formData.append(
-        "nama_kegiatan",
-        `Laporan Kinerja Bulan ${bulanLaporan}`
+        "uraian",
+        ringkasanPelaksanaan.trim() ||
+          (validPembahasan[0]?.realisasi || `Laporan Kinerja Bulan ${bulanLaporan}`)
       );
       formData.append("nama_penandatangan", penanggungJawab.trim());
 
@@ -449,6 +498,7 @@ function BuatLaporanKinerjaContent() {
           ? "Perbaikan laporan berhasil dikirim ke Pimpinan!"
           : "Laporan kinerja berhasil dikirim untuk persetujuan Pimpinan!"
       );
+      resetFormState();
       router.push("/unit/dashboard");
     } catch (err) {
       const axiosErr = err as AxiosError<{
@@ -637,6 +687,20 @@ function BuatLaporanKinerjaContent() {
                     </div>
                   </div>
 
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Nama Kegiatan / Program <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={namaKegiatan}
+                      onChange={(e) => setNamaKegiatan(e.target.value)}
+                      placeholder="Contoh: Pengelolaan dan Pengembangan Sistem Informasi Akademik"
+                      required
+                      className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0D47A1]/25 focus:border-[#0D47A1]"
+                    />
+                  </div>
+
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1.5">
                       Penanggung Jawab (Kepala Unit){" "}
@@ -669,7 +733,34 @@ function BuatLaporanKinerjaContent() {
                 </div>
               </section>
 
-              {/* Bagian 2: Tabel Dinamis Pembahasan */}
+              {/* Bagian 2: Ringkasan Pelaksanaan */}
+              <section className="bg-white rounded-2xl border border-slate-200/85 shadow-xs overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/70">
+                  <div className="w-8 h-8 rounded-xl bg-blue-100 text-[#0D47A1] flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm sm:text-base font-bold text-slate-900">
+                      2. Ringkasan Pelaksanaan
+                    </h2>
+                    <p className="text-xs text-slate-500">
+                      Gambaran singkat tujuan, waktu dan tempat, pihak yang terlibat, serta capaian utama.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-6">
+                  <textarea
+                    rows={4}
+                    value={ringkasanPelaksanaan}
+                    onChange={(e) => setRingkasanPelaksanaan(e.target.value)}
+                    placeholder="Tuliskan gambaran singkat tujuan kegiatan, waktu dan tempat pelaksanaan, pihak yang terlibat, serta capaian utama yang berhasil dicapai..."
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0D47A1]/25 focus:border-[#0D47A1]"
+                  />
+                </div>
+              </section>
+
+              {/* Bagian 3: Tabel Dinamis Pembahasan */}
               <section className="bg-white rounded-2xl border border-slate-200/85 shadow-xs overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/70">
                   <div className="flex items-center gap-3">
@@ -678,7 +769,7 @@ function BuatLaporanKinerjaContent() {
                     </div>
                     <div>
                       <h2 className="text-sm sm:text-base font-bold text-slate-900">
-                        2. Pembahasan &amp; Realisasi Kinerja{" "}
+                        3. Pembahasan &amp; Realisasi Kinerja{" "}
                         <span className="text-red-500">*</span>
                       </h2>
                       <p className="text-xs text-slate-500">
@@ -794,7 +885,7 @@ function BuatLaporanKinerjaContent() {
                 </div>
               </section>
 
-              {/* Bagian 3: Tabel Dinamis Kendala */}
+              {/* Bagian 4: Tabel Dinamis Kendala */}
               <section className="bg-white rounded-2xl border border-slate-200/85 shadow-xs overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/70">
                   <div className="flex items-center gap-3">
@@ -803,7 +894,7 @@ function BuatLaporanKinerjaContent() {
                     </div>
                     <div>
                       <h2 className="text-sm sm:text-base font-bold text-slate-900">
-                        3. Kendala / Hambatan (Opsional)
+                        4. Kendala / Hambatan (Opsional)
                       </h2>
                       <p className="text-xs text-slate-500">
                         Uraikan kendala yang dihadapi beserta penyebab, dampak, dan upaya penanganan.
@@ -915,7 +1006,7 @@ function BuatLaporanKinerjaContent() {
                 </div>
               </section>
 
-              {/* Bagian 4: Tabel Dinamis Dukungan */}
+              {/* Bagian 5: Tabel Dinamis Dukungan */}
               <section className="bg-white rounded-2xl border border-slate-200/85 shadow-xs overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/70">
                   <div className="flex items-center gap-3">
@@ -924,10 +1015,10 @@ function BuatLaporanKinerjaContent() {
                     </div>
                     <div>
                       <h2 className="text-sm sm:text-base font-bold text-slate-900">
-                        4. Dukungan yang Dibutuhkan (Opsional)
+                        5. Dukungan yang Dibutuhkan (Opsional)
                       </h2>
                       <p className="text-xs text-slate-500">
-                        Sebutkan kebutuhan dukungan sarana, kebijakan, atau koordinasi dari pihak terkait.
+                        Sebutkan kebutuhan dukungan sarana, kebijakan, atau koordinasi dari pihak terkait beserta tingkat prioritasnya.
                       </p>
                     </div>
                   </div>
@@ -972,7 +1063,7 @@ function BuatLaporanKinerjaContent() {
                           </button>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
                           <div>
                             <label className="block text-xs font-semibold text-slate-700 mb-1">
                               Jenis Dukungan
@@ -1015,6 +1106,22 @@ function BuatLaporanKinerjaContent() {
                               className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0D47A1]/20 focus:border-[#0D47A1]"
                             />
                           </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-700 mb-1">
+                              Tingkat Prioritas
+                            </label>
+                            <select
+                              value={row.prioritas || "Sedang"}
+                              onChange={(e) =>
+                                updateDukungan(idx, "prioritas", e.target.value)
+                              }
+                              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0D47A1]/20 focus:border-[#0D47A1]"
+                            >
+                              <option value="Tinggi">Tinggi</option>
+                              <option value="Sedang">Sedang</option>
+                              <option value="Rendah">Rendah</option>
+                            </select>
+                          </div>
                         </div>
                       </div>
                     ))
@@ -1022,7 +1129,7 @@ function BuatLaporanKinerjaContent() {
                 </div>
               </section>
 
-              {/* Bagian 5: Tabel Dinamis Tindak Lanjut */}
+              {/* Bagian 6: Tabel Dinamis Tindak Lanjut */}
               <section className="bg-white rounded-2xl border border-slate-200/85 shadow-xs overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/70">
                   <div className="flex items-center gap-3">
@@ -1031,7 +1138,7 @@ function BuatLaporanKinerjaContent() {
                     </div>
                     <div>
                       <h2 className="text-sm sm:text-base font-bold text-slate-900">
-                        5. Rencana Tindak Lanjut (Opsional)
+                        6. Rencana Tindak Lanjut (Opsional)
                       </h2>
                       <p className="text-xs text-slate-500">
                         Langkah perbaikan untuk periode berikutnya beserta penanggung jawab (PIC) dan target waktu.
@@ -1147,7 +1254,7 @@ function BuatLaporanKinerjaContent() {
                 </div>
               </section>
 
-              {/* Bagian 6: Kesimpulan & Rekomendasi */}
+              {/* Bagian 7: Kesimpulan & Rekomendasi */}
               <section className="bg-white rounded-2xl border border-slate-200/85 shadow-xs overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/70">
                   <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
@@ -1155,7 +1262,7 @@ function BuatLaporanKinerjaContent() {
                   </div>
                   <div>
                     <h2 className="text-sm sm:text-base font-bold text-slate-900">
-                      6. Kesimpulan &amp; Rekomendasi
+                      7. Kesimpulan &amp; Rekomendasi
                     </h2>
                     <p className="text-xs text-slate-500">
                       Ringkasan menyeluruh dan saran strategis untuk pimpinan.
@@ -1191,10 +1298,11 @@ function BuatLaporanKinerjaContent() {
                 </div>
               </section>
 
-              {/* Bagian 7: Tanda Tangan Penyusun */}
+              {/* Bagian 8: Tanda Tangan Penyusun */}
               <section className="bg-white rounded-2xl border border-slate-200/85 shadow-xs p-6">
                 <SignaturePadField
-                  label="7. Tanda Tangan Penyusun (Staf)"
+                  key={formResetKey}
+                  label="8. Tanda Tangan Penyusun (Staf)"
                   helperText="Tanda tangan ini akan dicetak pada dokumen PDF sebagai penyusun laporan sebelum disetujui Pimpinan."
                   existingPath={existingTtdPath}
                   onChange={setSignature}
