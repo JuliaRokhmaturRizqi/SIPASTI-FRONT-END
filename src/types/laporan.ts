@@ -60,6 +60,7 @@ export interface LaporanKinerjaItem {
   rekomendasi?: string | null;
   ttd_penyusun_path?: string | null;
   ttd_pimpinan_path?: string | null;
+  kop_surat_path?: string | null;
   nama_kegiatan?: string | null;
   uraian?: string | null;
   link_bukti?: string | null;

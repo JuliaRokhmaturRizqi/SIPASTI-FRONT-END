@@ -1,6 +1,12 @@
 "use client";
 
-import React, { Suspense, useCallback, useEffect, useState } from "react";
+import React, {
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AxiosError } from "axios";
@@ -12,6 +18,7 @@ import {
   CheckCircle2,
   ClipboardList,
   FileText,
+  ImageUp,
   Info,
   Lightbulb,
   Link2,
@@ -125,6 +132,12 @@ function BuatLaporanKinerjaContent() {
     emptyTindakLanjut(),
   ]);
 
+  // State Kop Surat (Opsional)
+  const [kopSuratFile, setKopSuratFile] = useState<File | null>(null);
+  const [kopSuratPreview, setKopSuratPreview] = useState<string | null>(null);
+  const [existingKopSuratPath, setExistingKopSuratPath] = useState<string | null>(null);
+  const kopSuratInputRef = useRef<HTMLInputElement | null>(null);
+
   // State Kesimpulan, Rekomendasi & TTD Penyusun
   const [kesimpulan, setKesimpulan] = useState<string>("");
   const [rekomendasi, setRekomendasi] = useState<string>("");
@@ -142,6 +155,12 @@ function BuatLaporanKinerjaContent() {
     setPenanggungJawab("");
     setPenyusun("");
     setRingkasanPelaksanaan("");
+    setKopSuratFile(null);
+    setKopSuratPreview(null);
+    setExistingKopSuratPath(null);
+    if (kopSuratInputRef.current) {
+      kopSuratInputRef.current.value = "";
+    }
     setPembahasan([emptyPembahasan()]);
     setKendala([emptyKendala()]);
     setDukungan([emptyDukungan()]);
@@ -293,6 +312,7 @@ function BuatLaporanKinerjaContent() {
             }
             setKesimpulan(item.kesimpulan || "");
             setRekomendasi(item.rekomendasi || "");
+            setExistingKopSuratPath(item.kop_surat_path || null);
             setExistingTtdPath(
               item.ttd_penyusun_path || item.ttd_image_path || null
             );
@@ -374,6 +394,38 @@ function BuatLaporanKinerjaContent() {
     setTindakLanjut((prev) =>
       prev.map((row, idx) => (idx === index ? { ...row, [field]: value } : row))
     );
+  };
+
+  const handleKopSuratChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!["image/png", "image/jpeg", "image/jpg"].includes(file.type)) {
+      toast.error("Format file kop surat harus PNG atau JPG.");
+      if (kopSuratInputRef.current) kopSuratInputRef.current.value = "";
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Ukuran file kop surat maksimal 2 MB.");
+      if (kopSuratInputRef.current) kopSuratInputRef.current.value = "";
+      return;
+    }
+
+    setKopSuratFile(file);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setKopSuratPreview(typeof reader.result === "string" ? reader.result : null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveKopSurat = () => {
+    setKopSuratFile(null);
+    setKopSuratPreview(null);
+    if (kopSuratInputRef.current) {
+      kopSuratInputRef.current.value = "";
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -476,6 +528,10 @@ function BuatLaporanKinerjaContent() {
           (validPembahasan[0]?.realisasi || `Laporan Kinerja Bulan ${bulanLaporan}`)
       );
       formData.append("nama_penandatangan", penanggungJawab.trim());
+
+      if (kopSuratFile) {
+        formData.append("kop_surat", kopSuratFile);
+      }
 
       if (signature.file) {
         formData.append("ttd_penyusun", signature.file);
@@ -646,6 +702,89 @@ function BuatLaporanKinerjaContent() {
                 </div>
 
                 <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  {/* Upload Kop Surat (Opsional) */}
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Kop Surat Unit Kerja{" "}
+                      <span className="font-normal text-slate-500">
+                        (Opsional / Jika Ada)
+                      </span>
+                    </label>
+                    <p className="text-[11px] text-slate-500 mb-2">
+                      Unggah gambar kop surat resmi unit untuk dicetak pada bagian paling atas dokumen PDF (Format PNG/JPG, maks. 2 MB).
+                    </p>
+
+                    <input
+                      ref={kopSuratInputRef}
+                      id="kop-surat-upload"
+                      type="file"
+                      accept="image/png, image/jpeg, image/jpg"
+                      onChange={handleKopSuratChange}
+                      className="hidden"
+                    />
+
+                    {kopSuratFile && kopSuratPreview ? (
+                      <div className="rounded-xl border-2 border-dashed border-emerald-300 bg-emerald-50/40 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <img
+                            src={kopSuratPreview}
+                            alt="Preview Kop Surat"
+                            className="h-14 w-auto max-w-[160px] object-contain rounded-lg border border-slate-200 bg-white p-1 shrink-0 shadow-2xs"
+                          />
+                          <div className="min-w-0">
+                            <p className="text-xs sm:text-sm font-bold text-slate-800 truncate">
+                              {kopSuratFile.name}
+                            </p>
+                            <p className="text-[11px] text-emerald-700 font-medium">
+                              {(kopSuratFile.size / 1024).toFixed(1)} KB • Siap diunggah
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <label
+                            htmlFor="kop-surat-upload"
+                            className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer transition"
+                          >
+                            Ganti
+                          </label>
+                          <button
+                            type="button"
+                            onClick={handleRemoveKopSurat}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-200 bg-white hover:bg-red-50 text-red-600 text-xs font-semibold cursor-pointer transition"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Hapus</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <label
+                        htmlFor="kop-surat-upload"
+                        className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 hover:border-[#0D47A1]/60 bg-slate-50/70 hover:bg-blue-50/30 px-4 py-5 text-center cursor-pointer transition"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0D47A1] border border-blue-100 flex items-center justify-center">
+                          <ImageUp className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs sm:text-sm font-bold text-slate-700">
+                            Klik untuk memilih gambar kop surat
+                          </p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            PNG atau JPG (Rekomendasi rasio melebar/header, maks. 2 MB)
+                          </p>
+                        </div>
+                        {existingKopSuratPath && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold mt-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>
+                              Kop surat sebelumnya sudah tersimpan (unggah baru untuk mengganti)
+                            </span>
+                          </span>
+                        )}
+                      </label>
+                    )}
+                  </div>
+
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1.5">
                       Periode Pelaporan <span className="text-red-500">*</span>
