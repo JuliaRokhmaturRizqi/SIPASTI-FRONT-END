@@ -1,17 +1,20 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Briefcase,
   Building2,
+  ChevronUp,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   ShieldCheck,
   X,
 } from "lucide-react";
 import { sanitizePlainText } from "@/lib/security";
+import UbahPasswordModal from "@/components/UbahPasswordModal";
 
 export interface UnitSidebarProps {
   username?: string;
@@ -38,6 +41,22 @@ export default function UnitSidebar({
   const safeKategoriUnit = sanitizePlainText(kategoriUnit);
 
   const isDashboardActive = pathname === "/unit/dashboard";
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isUbahPasswordOpen, setIsUbahPasswordOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
     <>
@@ -124,33 +143,69 @@ export default function UnitSidebar({
           </nav>
         </div>
 
-        {/* Profil Operator & Tombol Logout */}
-        <div className="p-4 border-t border-white/10 space-y-3">
-          <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#FBC02D]/20 border border-[#FBC02D]/40 flex items-center justify-center text-[#FBC02D] font-bold text-xs">
+        {/* Profil Operator (Dropdown Ubah Password & Logout) */}
+        <div
+          ref={profileMenuRef}
+          className="relative p-4 border-t border-white/10"
+        >
+          {isProfileMenuOpen && (
+            <div className="absolute left-4 right-4 bottom-full mb-2 rounded-xl bg-slate-900 border border-white/15 shadow-2xl p-1.5 space-y-1 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsProfileMenuOpen(false);
+                  setIsUbahPasswordOpen(true);
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-semibold text-slate-200 hover:bg-white/10 hover:text-white transition cursor-pointer"
+              >
+                <KeyRound className="w-4 h-4 text-[#FBC02D] shrink-0" />
+                <span>Ubah Password</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsProfileMenuOpen(false);
+                  onLogout();
+                }}
+                disabled={isLoggingOut}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-semibold text-red-300 hover:bg-red-500/20 hover:text-red-200 transition cursor-pointer disabled:opacity-50"
+              >
+                <LogOut className="w-4 h-4 shrink-0" />
+                <span>{isLoggingOut ? "Keluar..." : "Keluar Sesi"}</span>
+              </button>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+            aria-expanded={isProfileMenuOpen}
+            className="w-full p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center gap-3 text-left transition cursor-pointer"
+          >
+            <div className="w-8 h-8 rounded-lg bg-[#FBC02D]/20 border border-[#FBC02D]/40 flex items-center justify-center text-[#FBC02D] font-bold text-xs shrink-0">
               <ShieldCheck className="w-4 h-4" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-white truncate">
                 {safeUsername}
               </p>
-              <p className="text-[10px] text-slate-400">
+              <p className="text-[10px] text-slate-400 truncate">
                 Otoritas {safeKategoriUnit}
               </p>
             </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={onLogout}
-            disabled={isLoggingOut}
-            className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-red-500/20 hover:border-red-400/30 border border-white/10 text-xs font-semibold text-white transition cursor-pointer disabled:opacity-50"
-          >
-            <LogOut className="w-4 h-4 text-[#FBC02D]" />
-            <span>{isLoggingOut ? "Keluar..." : "Keluar Sesi"}</span>
+            <ChevronUp
+              className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${
+                isProfileMenuOpen ? "rotate-180 text-white" : ""
+              }`}
+            />
           </button>
         </div>
       </aside>
+
+      <UbahPasswordModal
+        isOpen={isUbahPasswordOpen}
+        onClose={() => setIsUbahPasswordOpen(false)}
+      />
     </>
   );
 }

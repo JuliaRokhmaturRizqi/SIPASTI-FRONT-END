@@ -181,74 +181,18 @@ export default function LoginPage() {
   const isFormDisabled = isLoading || isSuccess || retryCountdown > 0;
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col justify-between bg-gradient-to-br from-[#f8fafc] via-[#f1f5f9] to-[#e8f1fc] text-slate-900 overflow-x-hidden selection:bg-[#0D47A1] selection:text-white">
+    <div className="relative min-h-screen w-full flex flex-col justify-between bg-slate-50 text-slate-900 overflow-x-hidden selection:bg-unuha-green selection:text-white">
       {/* =========================================================================
-          DECORATIVE BACKGROUND SHAPES (Sesuai Desain Modern SIPASTI)
+          DECORATIVE AMBIENT GLOW BACKGROUND (UNUHA Green & Gold)
           ========================================================================= */}
-
-      {/* 1. Sudut Kanan Atas: Lengkungan Emas & Gelombang Biru Langit */}
       <div
         aria-hidden="true"
-        className="absolute top-0 right-0 pointer-events-none w-72 h-72 sm:w-96 sm:h-96 lg:w-[480px] lg:h-[480px] overflow-hidden z-0"
+        className="pointer-events-none fixed inset-0 overflow-hidden z-0"
       >
-        <svg
-          viewBox="0 0 500 500"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-full h-full"
-        >
-          {/* Layer Gelombang Biru Muda Lembut */}
-          <path
-            d="M160 0C210 160 360 290 500 310V0H160Z"
-            fill="#E3F2FD"
-            fillOpacity="0.85"
-          />
-          {/* Layer Gelombang Biru Langit */}
-          <path
-            d="M260 0C300 130 400 220 500 240V0H260Z"
-            fill="#90CAF9"
-            fillOpacity="0.45"
-          />
-          {/* Aksen Lengkungan Kuning / Emas Khas Kampus */}
-          <path
-            d="M340 0C360 80 430 150 500 165V0H340Z"
-            fill="#FBC02D"
-          />
-          <circle cx="500" cy="0" r="140" fill="#FFA000" fillOpacity="0.15" />
-        </svg>
-      </div>
-
-      {/* 2. Sudut Kiri Bawah: Gelombang Biru Tua Melengkung */}
-      <div
-        aria-hidden="true"
-        className="absolute bottom-0 left-0 pointer-events-none w-64 h-64 sm:w-80 sm:h-80 lg:w-[460px] lg:h-[340px] overflow-hidden z-0"
-      >
-        <svg
-          viewBox="0 0 460 340"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-full h-full"
-        >
-          <path
-            d="M0 140C140 150 240 230 280 340H0V140Z"
-            fill="#1565C0"
-            fillOpacity="0.12"
-          />
-          <path
-            d="M0 210C110 220 190 270 230 340H0V210Z"
-            fill="#0D47A1"
-          />
-        </svg>
-      </div>
-
-      {/* 3. Pola Titik Grid (Dot Matrix Pattern) */}
-      <div
-        aria-hidden="true"
-        className="hidden md:grid grid-cols-6 gap-2.5 absolute top-16 left-[36%] opacity-25 pointer-events-none z-0"
-      >
-        {Array.from({ length: 24 }).map((_, i) => (
-          <span key={i} className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-        ))}
+        {/* Pendaran cahaya unuha-green-light di pojok kanan atas */}
+        <div className="absolute -top-24 -right-24 w-[420px] h-[420px] sm:w-[540px] sm:h-[540px] rounded-full bg-unuha-green-light blur-[100px] opacity-20" />
+        {/* Pendaran halus unuha-gold di pojok kiri bawah */}
+        <div className="absolute -bottom-28 -left-24 w-[360px] h-[360px] sm:w-[460px] sm:h-[460px] rounded-full bg-unuha-gold blur-[120px] opacity-15" />
       </div>
 
       {/* =========================================================================
@@ -256,11 +200,11 @@ export default function LoginPage() {
           ========================================================================= */}
       <header className="relative z-10 w-full max-w-7xl mx-auto px-6 sm:px-12 pt-6 sm:pt-8 flex items-center justify-between">
         <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-[#0D47A1] text-[#FBC02D] flex items-center justify-center shadow-md shadow-blue-900/15 border border-blue-800/30">
-            <Building2 className="w-6 h-6 text-[#FBC02D]" />
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-unuha-green to-unuha-green-light flex items-center justify-center shadow-soft border border-white/40">
+            <Building2 className="w-6 h-6 text-unuha-gold" />
           </div>
           <div>
-            <span className="font-extrabold text-base sm:text-lg tracking-tight text-slate-900 block leading-tight">
+            <span className="font-extrabold text-base sm:text-lg tracking-tight text-unuha-green block leading-tight">
               SIPASTI
             </span>
             <span className="text-[11px] sm:text-xs text-slate-500 font-medium block leading-tight">
@@ -283,14 +227,14 @@ export default function LoginPage() {
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-800 tracking-tight">
               Selamat Datang di
             </h1>
-            <div className="text-5xl sm:text-6xl lg:text-7xl font-black text-[#0D47A1] tracking-tight leading-none mt-1">
+            <div className="text-5xl sm:text-6xl lg:text-7xl font-black text-unuha-green tracking-tight leading-none mt-1">
               SIPASTI
             </div>
-            {/* Garis Aksen Kuning Horizontal */}
-            <div className="w-20 h-1.5 bg-[#FBC02D] rounded-full mt-3.5" />
+            {/* Garis Aksen Emas Horizontal */}
+            <div className="w-20 h-1.5 bg-unuha-gold rounded-full mt-3.5" />
             <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-md mt-4">
-              Sistem pelaporan administrasi terintegrasi untuk mendukung
-              pengelolaan data dan pelaporan yang lebih efektif.
+              Sistem pelaporan administrasi terintegrasi Universitas Nurul Huda
+              untuk mendukung pengelolaan data dan pelaporan yang lebih efektif.
             </p>
           </div>
 
@@ -312,16 +256,16 @@ export default function LoginPage() {
           aria-label="Form Login"
           className="w-full max-w-md shrink-0"
         >
-          <div className="bg-white rounded-3xl shadow-[0_20px_50px_rgba(13,71,161,0.08)] border border-slate-100 p-8 sm:p-10 space-y-6">
+          <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-soft border border-white/50 p-8 sm:p-10 space-y-6">
             {/* Logo & Judul di Dalam Card */}
             <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-2xl bg-blue-50/80 border border-blue-100 flex items-center justify-center shadow-xs mb-3">
-                <div className="w-11 h-11 rounded-xl bg-[#0D47A1] text-[#FBC02D] flex items-center justify-center shadow-sm">
-                  <Building2 className="w-6 h-6 text-[#FBC02D]" />
+              <div className="w-16 h-16 rounded-2xl bg-emerald-50/80 border border-emerald-100 flex items-center justify-center shadow-xs mb-3">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-unuha-green to-unuha-green-light flex items-center justify-center shadow-sm">
+                  <Building2 className="w-6 h-6 text-unuha-gold" />
                 </div>
               </div>
 
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              <h2 className="text-xl sm:text-2xl font-black text-unuha-green tracking-tight">
                 SIPASTI
               </h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
@@ -329,7 +273,7 @@ export default function LoginPage() {
               </p>
 
               {/* Garis Aksen Emas Bawah Judul Card */}
-              <div className="w-10 h-1 bg-[#FBC02D] rounded-full mt-2.5" />
+              <div className="w-10 h-1 bg-unuha-gold rounded-full mt-2.5" />
             </div>
 
             {/* Notifikasi Error di UI Form (Tanpa console.log) */}
@@ -379,7 +323,7 @@ export default function LoginPage() {
                   htmlFor="username"
                   className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mb-2"
                 >
-                  <User className="w-4 h-4 text-[#0D47A1]" />
+                  <User className="w-4 h-4 text-unuha-gold" />
                   <span>Username</span>
                 </label>
                 <div className="relative">
@@ -393,9 +337,9 @@ export default function LoginPage() {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="Masukkan username"
-                    className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-4 pr-11 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/15 transition duration-200 disabled:bg-slate-50 disabled:cursor-not-allowed"
+                    className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-4 pr-11 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-unuha-green focus:ring-2 focus:ring-unuha-green/15 transition duration-200 disabled:bg-slate-50 disabled:cursor-not-allowed"
                   />
-                  <User className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <User className="w-4 h-4 text-unuha-gold/80 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               </div>
 
@@ -405,7 +349,7 @@ export default function LoginPage() {
                   htmlFor="password"
                   className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mb-2"
                 >
-                  <Lock className="w-4 h-4 text-[#0D47A1]" />
+                  <Lock className="w-4 h-4 text-unuha-gold" />
                   <span>Password</span>
                 </label>
                 <div className="relative">
@@ -419,7 +363,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Masukkan password"
-                    className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-4 pr-11 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/15 transition duration-200 disabled:bg-slate-50 disabled:cursor-not-allowed"
+                    className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-4 pr-11 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-unuha-green focus:ring-2 focus:ring-unuha-green/15 transition duration-200 disabled:bg-slate-50 disabled:cursor-not-allowed"
                   />
                   <button
                     type="button"
@@ -430,7 +374,7 @@ export default function LoginPage() {
                         ? "Sembunyikan password"
                         : "Tampilkan password"
                     }
-                    className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors disabled:opacity-40 cursor-pointer"
+                    className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 hover:text-unuha-green focus:outline-none transition-colors disabled:opacity-40 cursor-pointer"
                   >
                     {showPassword ? (
                       <EyeOff className="w-4 h-4" />
@@ -441,23 +385,23 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Tombol Masuk Biru Gradien */}
+              {/* Tombol Masuk Gradasi UNUHA Green */}
               <div className="pt-2">
                 <button
                   type="submit"
                   disabled={isFormDisabled}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#0D47A1] via-[#1565C0] to-[#1976D2] hover:from-[#0B3D88] hover:to-[#1565C0] active:scale-[0.99] text-white font-bold py-3.5 px-4 text-sm shadow-md shadow-blue-900/20 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#0D47A1]/40 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-unuha-green to-unuha-green-light hover:scale-[1.02] hover:shadow-lg hover:shadow-unuha-green/25 active:scale-[0.99] text-white font-bold py-3.5 px-4 text-sm shadow-md shadow-unuha-green/15 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-unuha-green/40 disabled:opacity-60 disabled:hover:scale-100 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {isLoading ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin text-[#FBC02D]" />
+                      <Loader2 className="w-4 h-4 animate-spin text-unuha-gold" />
                       <span>Memproses...</span>
                     </>
                   ) : retryCountdown > 0 ? (
                     <span>Tunggu {retryCountdown}d</span>
                   ) : (
                     <>
-                      <LogIn className="w-4 h-4" />
+                      <LogIn className="w-4 h-4 text-unuha-gold" />
                       <span>Masuk</span>
                     </>
                   )}
@@ -473,8 +417,8 @@ export default function LoginPage() {
               </div>
 
               {/* Banner Informasi Bantuan */}
-              <div className="rounded-xl bg-blue-50/70 border border-blue-100 p-3.5 flex items-start gap-2.5 text-xs text-blue-800">
-                <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+              <div className="rounded-xl bg-emerald-50/70 border border-emerald-100 p-3.5 flex items-start gap-2.5 text-xs text-unuha-green">
+                <Info className="w-4 h-4 text-unuha-gold shrink-0 mt-0.5" />
                 <span className="leading-relaxed">
                   Pastikan Anda memasukkan username dan password dengan benar.
                 </span>
@@ -504,7 +448,7 @@ export default function LoginPage() {
               setUsername("admin");
               setPassword("password123");
             }}
-            className="hover:text-[#0D47A1] hover:underline font-medium transition cursor-pointer disabled:cursor-not-allowed"
+            className="hover:text-unuha-green hover:underline font-medium transition cursor-pointer disabled:cursor-not-allowed"
           >
             Admin (admin / password123)
           </button>
@@ -516,7 +460,7 @@ export default function LoginPage() {
               setUsername("prodi_ti");
               setPassword("password123");
             }}
-            className="hover:text-[#0D47A1] hover:underline font-medium transition cursor-pointer disabled:cursor-not-allowed"
+            className="hover:text-unuha-green hover:underline font-medium transition cursor-pointer disabled:cursor-not-allowed"
           >
             Prodi (prodi_ti / password123)
           </button>
