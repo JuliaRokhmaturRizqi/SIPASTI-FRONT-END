@@ -13,8 +13,6 @@ import {
   ChevronDown,
   Edit3,
   Filter,
-  FlaskConical,
-  GraduationCap,
   Landmark,
   Layers,
   Loader2,
@@ -33,7 +31,6 @@ import { sanitizePlainText } from "@/lib/security";
 import { AuthUser } from "@/types/auth";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 
-// --- Tipe Data ---
 export interface KategoriUnitRecord {
   id: number;
   nama_kategori: string;
@@ -57,34 +54,13 @@ export interface UnitKerjaRecord {
   updated_at?: string;
 }
 
-interface Fakultas {
-  id: number;
-  nama_fakultas: string;
-  singkatan: string | null;
-}
-
-interface Prodi {
-  id: number;
-  id_fakultas: number;
-  nama_prodi: string;
-  periode_mulai_aktif: string | null;
-  fakultas?: {
-    id: number;
-    singkatan: string;
-    nama_fakultas: string;
-  };
-}
-
 interface DeleteConfirmTarget {
   id: number;
   nama: string;
   kategori?: string;
-  type: "unit" | "kategori" | "fakultas" | "prodi";
+  type: "unit" | "kategori";
 }
 
-/**
- * Helper konfigurasi warna badge berbeda untuk tiap Kategori Unit
- */
 function getKategoriBadgeStyle(kategori: string) {
   switch (kategori?.toLowerCase()) {
     case "biro":
@@ -122,7 +98,7 @@ function getKategoriBadgeStyle(kategori: string) {
   }
 }
 
-export default function MasterDataKampusPage() {
+export default function MasterDataKinerjaPage() {
   const router = useRouter();
 
   // State Otorisasi
@@ -132,16 +108,12 @@ export default function MasterDataKampusPage() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // State Navigasi Tab Master: Unit Kerja, Kategori Unit, Fakultas, Prodi
-  const [activeTab, setActiveTab] = useState<
-    "unit" | "kategori" | "fakultas" | "prodi"
-  >("unit");
+  // State Navigasi Tab Master Kinerja
+  const [activeTab, setActiveTab] = useState<"unit" | "kategori">("unit");
 
   // State Data Master
   const [unitList, setUnitList] = useState<UnitKerjaRecord[]>([]);
   const [kategoriList, setKategoriList] = useState<KategoriUnitRecord[]>([]);
-  const [fakultasList, setFakultasList] = useState<Fakultas[]>([]);
-  const [prodiList, setProdiList] = useState<Prodi[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // State Pencarian & Filter Unit
@@ -165,16 +137,6 @@ export default function MasterDataKampusPage() {
   const [editKategoriId, setEditKategoriId] = useState<number | null>(null);
   const [namaKategori, setNamaKategori] = useState("");
 
-  // State Form Fakultas
-  const [editFakultasId, setEditFakultasId] = useState<number | null>(null);
-  const [namaFakultas, setNamaFakultas] = useState("");
-  const [singkatanFakultas, setSingkatanFakultas] = useState("");
-
-  // State Form Prodi
-  const [editProdiId, setEditProdiId] = useState<number | null>(null);
-  const [namaProdi, setNamaProdi] = useState("");
-  const [idFakultasProdi, setIdFakultasProdi] = useState<string>("");
-
   // State Modal Konfirmasi Hapus Data
   const [deleteTarget, setDeleteTarget] =
     useState<DeleteConfirmTarget | null>(null);
@@ -186,27 +148,20 @@ export default function MasterDataKampusPage() {
     router.replace("/login");
   }, [router]);
 
-  /**
-   * Fetch Data Master dari Backend (termasuk GET /api/kategori-unit dan GET /api/unit-kerja)
-   */
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [unitRes, kategoriRes, fakultasRes, prodiRes] = await Promise.all([
+      const [unitRes, kategoriRes] = await Promise.all([
         apiClient.get<{ status: string; data?: UnitKerjaRecord[] }>(
           "/api/unit-kerja"
         ),
         apiClient.get<{ status: string; data?: KategoriUnitRecord[] }>(
           "/api/kategori-unit"
         ),
-        apiClient.get<{ status: string; data?: Fakultas[] }>("/api/fakultas"),
-        apiClient.get<{ status: string; data?: Prodi[] }>("/api/prodi"),
       ]);
 
       setUnitList(unitRes.data?.data || []);
       setKategoriList(kategoriRes.data?.data || []);
-      setFakultasList(fakultasRes.data?.data || []);
-      setProdiList(prodiRes.data?.data || []);
     } catch (err) {
       const axiosErr = err as AxiosError<{ message?: string }>;
       if (
@@ -217,7 +172,7 @@ export default function MasterDataKampusPage() {
       } else {
         toast.error(
           axiosErr.response?.data?.message ||
-            "Gagal memuat data master dari server."
+            "Gagal memuat master data kinerja dari server."
         );
       }
     } finally {
@@ -272,7 +227,6 @@ export default function MasterDataKampusPage() {
     }
   };
 
-  // Statistik Ringkasan Unit Kerja
   const unitStats = useMemo(() => {
     const total = unitList.length;
     const biro = unitList.filter(
@@ -285,23 +239,9 @@ export default function MasterDataKampusPage() {
         u.kategori_unit?.toLowerCase() === "pusat" ||
         u.kategori?.nama_kategori?.toLowerCase() === "pusat"
     ).length;
-    const lab = unitList.filter(
-      (u) =>
-        u.kategori_unit?.toLowerCase() === "lab" ||
-        u.kategori_unit?.toLowerCase() === "laboratorium" ||
-        u.kategori?.nama_kategori?.toLowerCase() === "lab" ||
-        u.kategori?.nama_kategori?.toLowerCase() === "laboratorium"
-    ).length;
-    const fakultas = unitList.filter(
-      (u) =>
-        u.kategori_unit?.toLowerCase() === "fakultas" ||
-        u.kategori?.nama_kategori?.toLowerCase() === "fakultas"
-    ).length;
-
-    return { total, biro, pusat, lab, fakultas };
+    return { total, biro, pusat };
   }, [unitList]);
 
-  // Filter & Pencarian Daftar Unit Kerja
   const filteredUnitList = useMemo(() => {
     return unitList.filter((u) => {
       const kat = (
@@ -320,36 +260,14 @@ export default function MasterDataKampusPage() {
     });
   }, [unitList, filterKategori, searchQuery]);
 
-  // Filter Kategori Unit
   const filteredKategoriList = useMemo(() => {
     if (!searchQuery.trim()) return kategoriList;
     const q = searchQuery.toLowerCase().trim();
-    return kategoriList.filter((k) => k.nama_kategori.toLowerCase().includes(q));
+    return kategoriList.filter((k) =>
+      k.nama_kategori.toLowerCase().includes(q)
+    );
   }, [kategoriList, searchQuery]);
 
-  // Filter Fakultas & Prodi berdasarkan searchQuery
-  const filteredFakultasList = useMemo(() => {
-    if (!searchQuery.trim()) return fakultasList;
-    const q = searchQuery.toLowerCase().trim();
-    return fakultasList.filter(
-      (f) =>
-        f.nama_fakultas.toLowerCase().includes(q) ||
-        (f.singkatan && f.singkatan.toLowerCase().includes(q))
-    );
-  }, [fakultasList, searchQuery]);
-
-  const filteredProdiList = useMemo(() => {
-    if (!searchQuery.trim()) return prodiList;
-    const q = searchQuery.toLowerCase().trim();
-    return prodiList.filter(
-      (p) =>
-        p.nama_prodi.toLowerCase().includes(q) ||
-        (p.fakultas?.nama_fakultas &&
-          p.fakultas.nama_fakultas.toLowerCase().includes(q))
-    );
-  }, [prodiList, searchQuery]);
-
-  // --- Handlers Modal ---
   const openModalCreate = () => {
     setModalMode("create");
     if (activeTab === "unit") {
@@ -362,17 +280,9 @@ export default function MasterDataKampusPage() {
         setSelectedKategoriId(null);
         setKategoriUnit("biro");
       }
-    } else if (activeTab === "kategori") {
+    } else {
       setEditKategoriId(null);
       setNamaKategori("");
-    } else if (activeTab === "fakultas") {
-      setEditFakultasId(null);
-      setNamaFakultas("");
-      setSingkatanFakultas("");
-    } else {
-      setEditProdiId(null);
-      setNamaProdi("");
-      setIdFakultasProdi(fakultasList[0]?.id.toString() || "");
     }
     setIsModalOpen(true);
   };
@@ -404,23 +314,6 @@ export default function MasterDataKampusPage() {
     setIsModalOpen(true);
   };
 
-  const openModalEditFakultas = (fakultas: Fakultas) => {
-    setModalMode("edit");
-    setEditFakultasId(fakultas.id);
-    setNamaFakultas(fakultas.nama_fakultas);
-    setSingkatanFakultas(fakultas.singkatan || "");
-    setIsModalOpen(true);
-  };
-
-  const openModalEditProdi = (prodi: Prodi) => {
-    setModalMode("edit");
-    setEditProdiId(prodi.id);
-    setNamaProdi(prodi.nama_prodi);
-    setIdFakultasProdi(prodi.id_fakultas.toString());
-    setIsModalOpen(true);
-  };
-
-  // --- CRUD Handlers (Submit Create / Update) ---
   const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
@@ -459,7 +352,7 @@ export default function MasterDataKampusPage() {
             res.data?.message || "Data unit kerja berhasil diperbarui."
           );
         }
-      } else if (activeTab === "kategori") {
+      } else {
         const trimmedNamaKategori = namaKategori.trim();
         if (!trimmedNamaKategori) {
           toast.error("Nama kategori unit wajib diisi.");
@@ -485,31 +378,6 @@ export default function MasterDataKampusPage() {
             res.data?.message || "Kategori unit berhasil diperbarui."
           );
         }
-      } else if (activeTab === "fakultas") {
-        const payload = {
-          nama_fakultas: namaFakultas.trim(),
-          singkatan: singkatanFakultas.trim() || null,
-        };
-        if (modalMode === "create") {
-          await apiClient.post("/api/fakultas", payload);
-          toast.success("Fakultas berhasil ditambahkan.");
-        } else {
-          await apiClient.put(`/api/fakultas/${editFakultasId}`, payload);
-          toast.success("Fakultas berhasil diperbarui.");
-        }
-      } else {
-        const payload = {
-          nama_prodi: namaProdi.trim(),
-          id_fakultas: Number(idFakultasProdi),
-          periode_mulai_aktif: null,
-        };
-        if (modalMode === "create") {
-          await apiClient.post("/api/prodi", payload);
-          toast.success("Program Studi berhasil ditambahkan.");
-        } else {
-          await apiClient.put(`/api/prodi/${editProdiId}`, payload);
-          toast.success("Program Studi berhasil diperbarui.");
-        }
       }
 
       setIsModalOpen(false);
@@ -532,11 +400,10 @@ export default function MasterDataKampusPage() {
     }
   };
 
-  // --- Delete Confirmation & Execution ---
   const handleOpenDeleteConfirm = (
     id: number,
     nama: string,
-    type: "unit" | "kategori" | "fakultas" | "prodi",
+    type: "unit" | "kategori",
     kategori?: string
   ) => {
     setDeleteTarget({ id, nama, type, kategori });
@@ -548,22 +415,8 @@ export default function MasterDataKampusPage() {
     setIsDeleting(true);
     const { id, type, nama } = deleteTarget;
     const endpoint =
-      type === "unit"
-        ? `/api/unit-kerja/${id}`
-        : type === "kategori"
-        ? `/api/kategori-unit/${id}`
-        : type === "fakultas"
-        ? `/api/fakultas/${id}`
-        : `/api/prodi/${id}`;
-
-    const typeLabel =
-      type === "unit"
-        ? "Unit Kerja"
-        : type === "kategori"
-        ? "Kategori Unit"
-        : type === "fakultas"
-        ? "Fakultas"
-        : "Program Studi";
+      type === "unit" ? `/api/unit-kerja/${id}` : `/api/kategori-unit/${id}`;
+    const typeLabel = type === "unit" ? "Unit Kerja" : "Kategori Unit";
 
     try {
       const response = await apiClient.delete(endpoint);
@@ -589,7 +442,7 @@ export default function MasterDataKampusPage() {
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
         <Loader2 className="w-10 h-10 animate-spin text-[#0D47A1] mb-3" />
         <p className="text-sm font-semibold text-slate-700">
-          Memuat Master Data Kampus...
+          Memuat Master Data Kinerja...
         </p>
       </div>
     );
@@ -622,7 +475,7 @@ export default function MasterDataKampusPage() {
             <div className="flex items-center gap-2">
               <Building2 className="w-5 h-5 text-[#0D47A1]" />
               <span className="font-bold text-sm text-slate-900">
-                Master Data Kampus
+                Master Data Kinerja
               </span>
             </div>
           </div>
@@ -635,15 +488,15 @@ export default function MasterDataKampusPage() {
               <div className="flex items-center gap-2 mb-1.5">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#0D47A1]/10 text-[#0D47A1] border border-[#0D47A1]/20">
                   <ShieldCheck className="w-3.5 h-3.5" />
-                  Manajemen Entitas Kampus
+                  Modul Kinerja
                 </span>
               </div>
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
-                Master Data Unit Kerja & Akademik
+                Master Data Unit Kerja &amp; Kategori
               </h1>
               <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl leading-relaxed">
-                Kelola entitas Master Unit Kerja, Kategori Unit, beserta struktur
-                Fakultas dan Program Studi Universitas Nurul Huda.
+                Kelola daftar Unit Kerja (Biro, Pusat, Laboratorium) beserta
+                Kategori Unit untuk pelaporan kinerja Universitas Nurul Huda.
               </p>
             </div>
 
@@ -671,11 +524,7 @@ export default function MasterDataKampusPage() {
                 <span>
                   {activeTab === "unit"
                     ? "Tambah Unit Kerja"
-                    : activeTab === "kategori"
-                    ? "Tambah Kategori Unit"
-                    : activeTab === "fakultas"
-                    ? "Tambah Fakultas"
-                    : "Tambah Program Studi"}
+                    : "Tambah Kategori Unit"}
                 </span>
               </button>
             </div>
@@ -728,7 +577,7 @@ export default function MasterDataKampusPage() {
                   {unitStats.pusat}
                 </p>
                 <p className="text-xs text-white/80 mt-1">
-                  Pusat studi & layanan
+                  Pusat studi &amp; layanan
                 </p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-white/15 backdrop-blur-md border border-white/60 flex items-center justify-center text-white shrink-0 shadow-inner">
@@ -739,13 +588,13 @@ export default function MasterDataKampusPage() {
             <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-900/15 flex items-center justify-between transition-transform duration-200 hover:-translate-y-0.5">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider text-white/90">
-                  Kategori Lainnya
+                  Total Kategori
                 </p>
                 <p className="text-3xl font-bold text-white mt-1.5">
                   {kategoriList.length}
                 </p>
                 <p className="text-xs text-white/80 mt-1">
-                  {kategoriList.length} Kategori Unit Aktif
+                  Kategori Unit Aktif
                 </p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-white/15 backdrop-blur-md border border-white/60 flex items-center justify-center text-white shrink-0 shadow-inner">
@@ -756,7 +605,6 @@ export default function MasterDataKampusPage() {
 
           {/* Baris Navigasi Tab & Filter Cerdas */}
           <section className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-            {/* Tab Selector */}
             <div className="flex p-1 bg-slate-100 rounded-xl w-full lg:w-fit overflow-x-auto gap-1">
               <button
                 type="button"
@@ -788,38 +636,6 @@ export default function MasterDataKampusPage() {
               >
                 <Tag className="w-4 h-4" />
                 <span>Kategori Unit ({kategoriList.length})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab("fakultas");
-                  setSearchQuery("");
-                }}
-                className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer shrink-0 ${
-                  activeTab === "fakultas"
-                    ? "bg-[#0D47A1] text-white shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <Building2 className="w-4 h-4" />
-                <span>Master Fakultas ({fakultasList.length})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab("prodi");
-                  setSearchQuery("");
-                }}
-                className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer shrink-0 ${
-                  activeTab === "prodi"
-                    ? "bg-[#0D47A1] text-white shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <GraduationCap className="w-4 h-4" />
-                <span>Program Studi ({prodiList.length})</span>
               </button>
             </div>
 
@@ -862,11 +678,7 @@ export default function MasterDataKampusPage() {
                   placeholder={
                     activeTab === "unit"
                       ? "Cari nama unit kerja atau kategori..."
-                      : activeTab === "kategori"
-                      ? "Cari nama kategori unit..."
-                      : activeTab === "fakultas"
-                      ? "Cari nama atau singkatan fakultas..."
-                      : "Cari nama program studi..."
+                      : "Cari nama kategori unit..."
                   }
                   className="w-full pl-10 pr-9 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0D47A1]/20 focus:border-[#0D47A1] transition-all duration-200"
                 />
@@ -883,18 +695,17 @@ export default function MasterDataKampusPage() {
             </div>
           </section>
 
-          {/* Tabel Enterprise Master Data */}
+          {/* Tabel Enterprise Master Data Kinerja */}
           <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             {isLoading ? (
               <div className="py-20 flex flex-col items-center justify-center gap-3">
                 <Loader2 className="w-8 h-8 animate-spin text-[#0D47A1]" />
                 <p className="text-xs font-semibold text-slate-500">
-                  Memuat data master dari server...
+                  Memuat data master kinerja dari server...
                 </p>
               </div>
             ) : (
               <div className="overflow-x-auto">
-                {/* TAB 1: TABEL MASTER UNIT KERJA */}
                 {activeTab === "unit" && (
                   <table className="w-full text-left border-collapse text-sm">
                     <thead>
@@ -1006,7 +817,6 @@ export default function MasterDataKampusPage() {
                   </table>
                 )}
 
-                {/* TAB 2: TABEL MASTER KATEGORI UNIT */}
                 {activeTab === "kategori" && (
                   <table className="w-full text-left border-collapse text-sm">
                     <thead>
@@ -1101,133 +911,13 @@ export default function MasterDataKampusPage() {
                     </tbody>
                   </table>
                 )}
-
-                {/* TAB 3: TABEL MASTER FAKULTAS */}
-                {activeTab === "fakultas" && (
-                  <table className="w-full text-left border-collapse text-sm">
-                    <thead>
-                      <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                        <th className="px-6 py-4 w-16">No</th>
-                        <th className="px-6 py-4">Nama Fakultas</th>
-                        <th className="px-6 py-4">Singkatan</th>
-                        <th className="px-6 py-4 text-right">Aksi</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {filteredFakultasList.map((fak, idx) => (
-                        <tr
-                          key={fak.id}
-                          className="hover:bg-blue-50/30 transition-colors"
-                        >
-                          <td className="px-6 py-4 text-xs font-bold text-slate-400 font-mono">
-                            {idx + 1}
-                          </td>
-                          <td className="px-6 py-4 font-bold text-slate-900">
-                            {sanitizePlainText(fak.nama_fakultas)}
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className="px-2.5 py-1 rounded-md bg-blue-50 text-[#0D47A1] border border-blue-200 font-mono text-xs font-bold">
-                              {sanitizePlainText(fak.singkatan || "-")}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="inline-flex items-center justify-end gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => openModalEditFakultas(fak)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#0D47A1] bg-blue-50/70 hover:bg-[#0D47A1] hover:text-white border border-blue-200/60 transition-all cursor-pointer"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                                <span>Edit</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleOpenDeleteConfirm(
-                                    fak.id,
-                                    fak.nama_fakultas,
-                                    "fakultas"
-                                  )
-                                }
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 bg-red-50/70 hover:bg-red-600 hover:text-white border border-red-200/60 transition-all cursor-pointer"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                <span>Hapus</span>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-
-                {/* TAB 4: TABEL MASTER PROGRAM STUDI */}
-                {activeTab === "prodi" && (
-                  <table className="w-full text-left border-collapse text-sm">
-                    <thead>
-                      <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                        <th className="px-6 py-4 w-16">No</th>
-                        <th className="px-6 py-4">Nama Program Studi</th>
-                        <th className="px-6 py-4">Induk Fakultas</th>
-                        <th className="px-6 py-4 text-right">Aksi</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {filteredProdiList.map((prd, idx) => (
-                        <tr
-                          key={prd.id}
-                          className="hover:bg-blue-50/30 transition-colors"
-                        >
-                          <td className="px-6 py-4 text-xs font-bold text-slate-400 font-mono">
-                            {idx + 1}
-                          </td>
-                          <td className="px-6 py-4 font-bold text-slate-900">
-                            {sanitizePlainText(prd.nama_prodi)}
-                          </td>
-                          <td className="px-6 py-4 text-slate-600 font-medium">
-                            {sanitizePlainText(
-                              prd.fakultas?.nama_fakultas || "-"
-                            )}
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="inline-flex items-center justify-end gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => openModalEditProdi(prd)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#0D47A1] bg-blue-50/70 hover:bg-[#0D47A1] hover:text-white border border-blue-200/60 transition-all cursor-pointer"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                                <span>Edit</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleOpenDeleteConfirm(
-                                    prd.id,
-                                    prd.nama_prodi,
-                                    "prodi"
-                                  )
-                                }
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 bg-red-50/70 hover:bg-red-600 hover:text-white border border-red-200/60 transition-all cursor-pointer"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                <span>Hapus</span>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
               </div>
             )}
           </section>
         </main>
       </div>
 
-      {/* Modal Tambah / Edit Data Master */}
+      {/* Modal Tambah / Edit Data Master Kinerja */}
       {isModalOpen && (
         <div
           role="dialog"
@@ -1240,13 +930,7 @@ export default function MasterDataKampusPage() {
                 <Building2 className="w-5 h-5 text-[#FBC02D]" />
                 <h3 className="font-bold text-base">
                   {modalMode === "create" ? "Tambah" : "Edit"}{" "}
-                  {activeTab === "unit"
-                    ? "Unit Kerja"
-                    : activeTab === "kategori"
-                    ? "Kategori Unit"
-                    : activeTab === "fakultas"
-                    ? "Fakultas"
-                    : "Program Studi"}
+                  {activeTab === "unit" ? "Unit Kerja" : "Kategori Unit"}
                 </h3>
               </div>
               <button
@@ -1260,8 +944,7 @@ export default function MasterDataKampusPage() {
             </div>
 
             <form onSubmit={handleSubmitForm} className="p-6 space-y-4">
-              {/* FORM UNIT KERJA */}
-              {activeTab === "unit" && (
+              {activeTab === "unit" ? (
                 <>
                   <div>
                     <label
@@ -1320,10 +1003,7 @@ export default function MasterDataKampusPage() {
                     </div>
                   </div>
                 </>
-              )}
-
-              {/* FORM KATEGORI UNIT */}
-              {activeTab === "kategori" && (
+              ) : (
                 <div>
                   <label
                     htmlFor="input-nama-kategori"
@@ -1346,80 +1026,6 @@ export default function MasterDataKampusPage() {
                     menambah atau mengedit Unit Kerja.
                   </p>
                 </div>
-              )}
-
-              {/* FORM FAKULTAS */}
-              {activeTab === "fakultas" && (
-                <>
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                      Nama Fakultas <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      disabled={isSubmitting}
-                      value={namaFakultas}
-                      onChange={(e) => setNamaFakultas(e.target.value)}
-                      placeholder="Contoh: Fakultas Sains dan Teknologi"
-                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                      Singkatan (Opsional)
-                    </label>
-                    <input
-                      type="text"
-                      disabled={isSubmitting}
-                      value={singkatanFakultas}
-                      onChange={(e) => setSingkatanFakultas(e.target.value)}
-                      placeholder="Contoh: FST"
-                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 outline-none"
-                    />
-                  </div>
-                </>
-              )}
-
-              {/* FORM PRODI */}
-              {activeTab === "prodi" && (
-                <>
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                      Nama Program Studi <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      disabled={isSubmitting}
-                      value={namaProdi}
-                      onChange={(e) => setNamaProdi(e.target.value)}
-                      placeholder="Contoh: S1 Informatika"
-                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                      Induk Fakultas <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      required
-                      disabled={isSubmitting}
-                      value={idFakultasProdi}
-                      onChange={(e) => setIdFakultasProdi(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm bg-white focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 outline-none"
-                    >
-                      <option value="" disabled>
-                        Pilih Fakultas
-                      </option>
-                      {fakultasList.map((f) => (
-                        <option key={f.id} value={f.id}>
-                          {f.nama_fakultas}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </>
               )}
 
               <div className="pt-4 flex justify-end gap-2.5 border-t border-slate-100">
@@ -1474,11 +1080,7 @@ export default function MasterDataKampusPage() {
                   Apakah Anda yakin ingin menghapus data{" "}
                   {deleteTarget.type === "unit"
                     ? "Unit Kerja"
-                    : deleteTarget.type === "kategori"
-                    ? "Kategori Unit"
-                    : deleteTarget.type === "fakultas"
-                    ? "Fakultas"
-                    : "Program Studi"}{" "}
+                    : "Kategori Unit"}{" "}
                   berikut secara permanen dari database?
                 </p>
               </div>
@@ -1488,11 +1090,7 @@ export default function MasterDataKampusPage() {
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                 {deleteTarget.type === "unit"
                   ? `Nama Unit (${deleteTarget.kategori?.toUpperCase() || "UNIT"})`
-                  : deleteTarget.type === "kategori"
-                  ? "Nama Kategori Unit"
-                  : deleteTarget.type === "fakultas"
-                  ? "Nama Fakultas"
-                  : "Nama Program Studi"}
+                  : "Nama Kategori Unit"}
               </p>
               <p className="text-sm font-bold text-slate-900 break-words">
                 {sanitizePlainText(deleteTarget.nama)}
