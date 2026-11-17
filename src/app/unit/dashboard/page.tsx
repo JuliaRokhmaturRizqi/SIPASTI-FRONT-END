@@ -42,6 +42,7 @@ const ALLOWED_ROLES = ["biro", "pusat", "lab"] as const;
 export interface UnitPeriodeOption {
   id: string;
   nama_periode: string;
+  status_aktif?: boolean | number;
 }
 
 /**
@@ -120,7 +121,7 @@ export default function UnitDashboardPage() {
 
   // State Periode Akademik & Laporan Kinerja
   const [periodeList, setPeriodeList] = useState<UnitPeriodeOption[]>([]);
-  const [selectedPeriode, setSelectedPeriode] = useState<string>("");
+  const [selectedPeriodeId, setSelectedPeriodeId] = useState<string>("");
   const [laporanList, setLaporanList] = useState<LaporanKinerjaItem[]>([]);
   const [isFetching, setIsFetching] = useState<boolean>(false);
 
@@ -140,11 +141,11 @@ export default function UnitDashboardPage() {
 
   /**
    * Mengambil data laporan kinerja dari API:
-   * GET /api/laporan-kinerja?id_periode={periodeId}
+   * GET /api/laporan-kinerja?periode_id={periodeId}
    */
   const fetchLaporanData = useCallback(
     async (periodeIdParam?: string, showSpinner = true) => {
-      const targetPeriode = periodeIdParam ?? selectedPeriode;
+      const targetPeriode = periodeIdParam ?? selectedPeriodeId;
       if (!targetPeriode) {
         setLaporanList([]);
         return;
@@ -159,7 +160,7 @@ export default function UnitDashboardPage() {
           "/api/laporan-kinerja",
           {
             params: {
-              id_periode: targetPeriode,
+              periode_id: targetPeriode,
             },
           }
         );
@@ -185,7 +186,7 @@ export default function UnitDashboardPage() {
         }
       }
     },
-    [selectedPeriode, handleUnauthorizedExit]
+    [selectedPeriodeId, handleUnauthorizedExit]
   );
 
   // Inisialisasi Sesi Pengguna & Daftar Periode Aktif
@@ -225,39 +226,40 @@ export default function UnitDashboardPage() {
           return;
         }
 
-        let initialPeriodeId = "";
         try {
           const periodeRes =
             await apiClient.get<PeriodeListResponse>("/api/periode");
           const rawPeriode = periodeRes.data?.data || [];
 
-          // Filter periode aktif (status_aktif === true atau 1)
-          const filteredActive = rawPeriode.filter(
-            (p: PeriodeApiRecord) =>
-              p.status_aktif === true || p.status_aktif === 1
-          );
-
           if (isMounted) {
-            if (filteredActive.length > 0) {
-              const mappedOptions: UnitPeriodeOption[] = filteredActive.map(
+            if (rawPeriode.length > 0) {
+              const mappedOptions: UnitPeriodeOption[] = rawPeriode.map(
                 (p) => ({
                   id: String(p.id),
                   nama_periode: p.nama_periode,
+                  status_aktif: p.status_aktif,
                 })
               );
 
+              const activePeriode =
+                rawPeriode.find(
+                  (p: PeriodeApiRecord) =>
+                    p.status_aktif === true || p.status_aktif === 1
+                ) ||
+                rawPeriode.find((p: PeriodeApiRecord) => Boolean(p.is_default)) ||
+                rawPeriode[0];
+
               setPeriodeList(mappedOptions);
-              initialPeriodeId = String(mappedOptions[0].id);
-              setSelectedPeriode(initialPeriodeId);
+              setSelectedPeriodeId(String(activePeriode.id));
             } else {
               setPeriodeList([]);
-              setSelectedPeriode("");
+              setSelectedPeriodeId("");
             }
           }
         } catch {
           if (isMounted) {
             setPeriodeList([]);
-            setSelectedPeriode("");
+            setSelectedPeriodeId("");
             toast.error("Gagal memuat daftar periode pelaporan dari server.");
           }
         }
@@ -266,10 +268,6 @@ export default function UnitDashboardPage() {
           setUser(verifiedUser);
           setIsAuthorized(true);
           setIsCheckingAuth(false);
-        }
-
-        if (initialPeriodeId) {
-          await fetchLaporanData(initialPeriodeId, true);
         }
       } catch (err) {
         const axiosErr = err as AxiosError;
@@ -285,18 +283,13 @@ export default function UnitDashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [handleUnauthorizedExit, fetchLaporanData]);
+  }, [handleUnauthorizedExit]);
 
-  // Re-fetch laporan ketika selectedPeriode berubah
-  const handlePeriodeChange = async (
-    e: React.ChangeEvent<HTMLSelectElement>
-  ) => {
-    const nextPeriodeId = e.target.value;
-    setSelectedPeriode(nextPeriodeId);
-    if (nextPeriodeId) {
-      await fetchLaporanData(nextPeriodeId, true);
-    }
-  };
+  // Fetch ulang laporan setiap kali selectedPeriodeId berubah
+  useEffect(() => {
+    if (!isAuthorized || !selectedPeriodeId) return;
+    fetchLaporanData(selectedPeriodeId, true);
+  }, [isAuthorized, selectedPeriodeId, fetchLaporanData]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -347,11 +340,11 @@ export default function UnitDashboardPage() {
   // Objek Periode Terpilih
   const currentPeriodeObj = useMemo(() => {
     return (
-      periodeList.find((p) => p.id === selectedPeriode) ||
+      periodeList.find((p) => p.id === selectedPeriodeId) ||
       periodeList[0] ||
       null
     );
-  }, [periodeList, selectedPeriode]);
+  }, [periodeList, selectedPeriodeId]);
 
   // Kalkulasi 4 Kartu Statistik berdasarkan laporanList
   const stats = useMemo(() => {
@@ -461,7 +454,7 @@ export default function UnitDashboardPage() {
             {/* Tombol Refresh / Sinkronkan */}
             <button
               type="button"
-              onClick={() => fetchLaporanData(selectedPeriode, true)}
+              onClick={() => fetchLaporanData(selectedPeriodeId, true)}
               disabled={isFetching}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs transition disabled:opacity-50 cursor-pointer"
             >
@@ -487,19 +480,22 @@ export default function UnitDashboardPage() {
               <Calendar className="w-4 h-4 text-[#0D47A1] pointer-events-none absolute left-3.5" />
               <select
                 aria-label="Pilih Periode Pelaporan"
-                value={selectedPeriode}
-                onChange={handlePeriodeChange}
+                value={selectedPeriodeId}
+                onChange={(e) => setSelectedPeriodeId(e.target.value)}
                 disabled={isFetching || periodeList.length === 0}
                 className="appearance-none rounded-xl border border-slate-200 bg-white pl-9 pr-9 py-2 text-xs sm:text-sm font-medium text-slate-700 shadow-sm hover:border-slate-300 focus:border-[#0D47A1] focus:outline-none focus:ring-2 focus:ring-[#0D47A1]/15 transition disabled:opacity-60 cursor-pointer"
               >
                 {periodeList.length === 0 ? (
                   <option value="" disabled>
-                    Tidak ada periode aktif
+                    Tidak ada periode tersedia
                   </option>
                 ) : (
                   periodeList.map((periode) => (
                     <option key={periode.id} value={periode.id}>
-                      {periode.nama_periode} (Aktif)
+                      {periode.nama_periode}
+                      {periode.status_aktif === true || periode.status_aktif === 1
+                        ? " (Aktif)"
+                        : ""}
                     </option>
                   ))
                 )}
@@ -626,8 +622,8 @@ export default function UnitDashboardPage() {
             <section aria-label="Aksi Tambah Laporan">
               <Link
                 href={
-                  selectedPeriode
-                    ? `/unit/laporan-kinerja/buat?periode=${selectedPeriode}`
+                  selectedPeriodeId
+                    ? `/unit/laporan-kinerja/buat?periode=${selectedPeriodeId}`
                     : "/unit/laporan-kinerja/buat"
                 }
                 className="w-full py-4 px-6 rounded-2xl bg-[#0D47A1] hover:bg-[#1565C0] active:bg-blue-900 text-white font-bold text-sm sm:text-base shadow-md shadow-blue-900/15 hover:shadow-lg transition-all flex items-center justify-center gap-3 border border-blue-400/30 group"
@@ -936,7 +932,7 @@ export default function UnitDashboardPage() {
         isOpen={Boolean(approvalTarget)}
         laporan={approvalTarget}
         onClose={() => setApprovalTarget(null)}
-        onSuccess={() => fetchLaporanData(selectedPeriode, false)}
+        onSuccess={() => fetchLaporanData(selectedPeriodeId, false)}
       />
     </div>
   );
