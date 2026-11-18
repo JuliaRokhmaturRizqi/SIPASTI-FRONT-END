@@ -489,14 +489,14 @@ export default function AdminDashboardExecutivePage() {
     const revisiTotal = stats.dokumenRevisi + stats.laporanRevisi;
 
     const slices: ChartSlice[] = [
-      { name: "Selesai / Tervalidasi", value: selesaiTotal, color: "#10b981" },
-      { name: "Menunggu Review", value: reviewTotal, color: "#f59e0b" },
+      { name: "Selesai / Tervalidasi", value: selesaiTotal, color: "#0F5132" },
+      { name: "Menunggu Review", value: reviewTotal, color: "#D4AF37" },
     ];
     if (revisiTotal > 0) {
       slices.push({
         name: "Perlu Revisi",
         value: revisiTotal,
-        color: "#0D47A1",
+        color: "#be123c",
       });
     }
     return slices;
@@ -554,17 +554,17 @@ export default function AdminDashboardExecutivePage() {
         </header>
 
         {/* Banner Sambutan Executive Summary */}
-        <section className="bg-gradient-to-r from-[#0f172a] via-blue-950 to-[#0D47A1] text-white px-4 sm:px-6 lg:px-8 py-7 border-b border-white/10 shadow-sm">
+        <section className="bg-gradient-to-r from-unuha-green-dark via-unuha-green to-unuha-green-light text-white px-4 sm:px-6 lg:px-8 py-7 border-b border-white/10 shadow-sm">
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[11px] font-bold uppercase tracking-wider text-[#FBC02D]">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[11px] font-bold uppercase tracking-wider text-unuha-gold">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Executive Summary Administrator</span>
               </div>
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-white">
                 Overview Sistem SIPASTI - {activePeriodeName}
               </h1>
-              <p className="text-xs sm:text-sm text-blue-100/90 max-w-2xl leading-relaxed">
+              <p className="text-xs sm:text-sm text-emerald-50/90 max-w-2xl leading-relaxed">
                 Ringkasan eksekutif capaian pelaporan Modul Akademik dan Modul
                 Kinerja Unit Universitas Nurul Huda pada periode aktif.
               </p>
@@ -572,17 +572,17 @@ export default function AdminDashboardExecutivePage() {
 
             <div className="flex items-center gap-3 shrink-0">
               <div className="hidden sm:flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/15 text-xs font-semibold text-white">
-                <Calendar className="w-4 h-4 text-[#FBC02D]" />
+                <Calendar className="w-4 h-4 text-unuha-gold" />
                 <span>{activePeriodeName}</span>
               </div>
               <button
                 type="button"
                 onClick={() => fetchExecutiveSummary(activePeriodeId)}
                 disabled={isFetchingStats}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-[#0f172a] hover:bg-blue-50 text-xs sm:text-sm font-bold shadow-sm transition-all duration-200 cursor-pointer disabled:opacity-60"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-unuha-green-dark hover:bg-emerald-50 text-xs sm:text-sm font-bold shadow-sm transition-all duration-200 cursor-pointer disabled:opacity-60"
               >
                 <RefreshCw
-                  className={`w-4 h-4 text-[#0D47A1] ${
+                  className={`w-4 h-4 text-unuha-green ${
                     isFetchingStats ? "animate-spin" : ""
                   }`}
                 />
@@ -597,7 +597,7 @@ export default function AdminDashboardExecutivePage() {
           <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50/70">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#0f172a] text-[#FBC02D] flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-unuha-green-dark text-unuha-gold flex items-center justify-center shrink-0">
                   <GraduationCap className="w-5 h-5" />
                 </div>
                 <div>
@@ -612,7 +612,7 @@ export default function AdminDashboardExecutivePage() {
               </div>
               <Link
                 href="/admin/pemantauan-akademik"
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0D47A1] hover:underline"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-unuha-green hover:text-unuha-green-light hover:underline"
               >
                 <span>Lihat Detail Akademik</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -632,7 +632,7 @@ export default function AdminDashboardExecutivePage() {
                     Program studi aktif
                   </p>
                 </div>
-                <div className="w-11 h-11 rounded-xl bg-blue-100 text-[#0D47A1] flex items-center justify-center shrink-0">
+                <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-100 text-unuha-green flex items-center justify-center shrink-0">
                   <Layers className="w-5 h-5" />
                 </div>
               </div>
@@ -649,31 +649,31 @@ export default function AdminDashboardExecutivePage() {
                     Total unggahan periode ini
                   </p>
                 </div>
-                <div className="w-11 h-11 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+                <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-100 text-unuha-green flex items-center justify-center shrink-0">
                   <FileText className="w-5 h-5" />
                 </div>
               </div>
 
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 flex items-center justify-between gap-3">
+              <div className="rounded-xl border border-unuha-green/20 bg-gradient-to-br from-unuha-green to-unuha-green-light text-white p-4 flex items-center justify-between gap-3 shadow-sm">
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-100">
                     Dokumen Tervalidasi
                   </p>
-                  <p className="text-2xl sm:text-3xl font-bold text-emerald-900 mt-1">
+                  <p className="text-2xl sm:text-3xl font-bold text-white mt-1">
                     {stats.dokumenTervalidasi}
                   </p>
-                  <p className="text-[11px] text-emerald-700/80 mt-0.5">
+                  <p className="text-[11px] text-emerald-100/90 mt-0.5">
                     Sudah disahkan admin
                   </p>
                 </div>
-                <div className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                <div className="w-11 h-11 rounded-xl bg-white/15 border border-white/25 text-unuha-gold flex items-center justify-center shrink-0">
                   <FileCheck2 className="w-5 h-5" />
                 </div>
               </div>
 
-              <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 flex items-center justify-between gap-3">
+              <div className="rounded-xl border border-unuha-gold/40 bg-amber-50/80 p-4 flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-amber-800">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-amber-900">
                     Menunggu Review
                   </p>
                   <p className="text-2xl sm:text-3xl font-bold text-amber-950 mt-1">
@@ -683,7 +683,7 @@ export default function AdminDashboardExecutivePage() {
                     Perlu pemeriksaan admin
                   </p>
                 </div>
-                <div className="w-11 h-11 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                <div className="w-11 h-11 rounded-xl bg-unuha-gold/25 text-amber-800 flex items-center justify-center shrink-0">
                   <Clock className="w-5 h-5" />
                 </div>
               </div>
@@ -694,7 +694,7 @@ export default function AdminDashboardExecutivePage() {
           <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50/70">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#0f172a] text-[#FBC02D] flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-unuha-green-dark text-unuha-gold flex items-center justify-center shrink-0">
                   <Briefcase className="w-5 h-5" />
                 </div>
                 <div>
@@ -709,7 +709,7 @@ export default function AdminDashboardExecutivePage() {
               </div>
               <Link
                 href="/admin/laporan-kinerja"
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0D47A1] hover:underline"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-unuha-green hover:text-unuha-green-light hover:underline"
               >
                 <span>Lihat Detail Kinerja</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -729,7 +729,7 @@ export default function AdminDashboardExecutivePage() {
                     Biro, Pusat &amp; Lab
                   </p>
                 </div>
-                <div className="w-11 h-11 rounded-xl bg-blue-100 text-[#0D47A1] flex items-center justify-center shrink-0">
+                <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-100 text-unuha-green flex items-center justify-center shrink-0">
                   <Building2 className="w-5 h-5" />
                 </div>
               </div>
@@ -746,12 +746,12 @@ export default function AdminDashboardExecutivePage() {
                     Total laporan periode ini
                   </p>
                 </div>
-                <div className="w-11 h-11 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+                <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-100 text-unuha-green flex items-center justify-center shrink-0">
                   <Briefcase className="w-5 h-5" />
                 </div>
               </div>
 
-              <div className="rounded-xl border border-rose-200 bg-rose-50/70 p-4 flex items-center justify-between gap-3">
+              <div className="rounded-xl border border-rose-200 bg-rose-50/80 p-4 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-wider text-rose-800">
                     Menunggu Validasi Admin
@@ -768,19 +768,19 @@ export default function AdminDashboardExecutivePage() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 flex items-center justify-between gap-3">
+              <div className="rounded-xl border border-unuha-green/20 bg-gradient-to-br from-unuha-green to-unuha-green-light text-white p-4 flex items-center justify-between gap-3 shadow-sm">
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-100">
                     Laporan Selesai
                   </p>
-                  <p className="text-2xl sm:text-3xl font-bold text-emerald-900 mt-1">
+                  <p className="text-2xl sm:text-3xl font-bold text-white mt-1">
                     {stats.laporanSelesai}
                   </p>
-                  <p className="text-[11px] text-emerald-700/80 mt-0.5">
+                  <p className="text-[11px] text-emerald-100/90 mt-0.5">
                     Disahkan &amp; siap cetak PDF
                   </p>
                 </div>
-                <div className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                <div className="w-11 h-11 rounded-xl bg-white/15 border border-white/25 text-unuha-gold flex items-center justify-center shrink-0">
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
               </div>
@@ -983,45 +983,45 @@ export default function AdminDashboardExecutivePage() {
           <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Link
               href="/admin/pemantauan-akademik"
-              className="group bg-[#0f172a] hover:bg-blue-950 text-white rounded-2xl p-6 shadow-md border border-slate-800 flex items-center justify-between gap-4 transition-all duration-200 hover:-translate-y-0.5"
+              className="group bg-unuha-green hover:bg-unuha-green-light text-white rounded-2xl p-6 shadow-md border border-unuha-green/40 flex items-center justify-between gap-4 transition-all duration-200 hover:-translate-y-0.5"
             >
               <div className="flex items-center gap-4 min-w-0">
                 <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0">
-                  <GraduationCap className="w-6 h-6 text-[#FBC02D]" />
+                  <GraduationCap className="w-6 h-6 text-unuha-gold" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-base sm:text-lg font-bold text-white">
                     Buka Pemantauan Akademik
                   </p>
-                  <p className="text-xs text-slate-300 mt-0.5">
+                  <p className="text-xs text-emerald-50/90 mt-0.5">
                     Periksa matriks dokumen Prodi dan lakukan validasi berkas.
                   </p>
                 </div>
               </div>
               <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0 group-hover:translate-x-1 transition-transform">
-                <ArrowRight className="w-5 h-5 text-[#FBC02D]" />
+                <ArrowRight className="w-5 h-5 text-unuha-gold" />
               </div>
             </Link>
 
             <Link
               href="/admin/laporan-kinerja"
-              className="group bg-white hover:bg-blue-50/40 text-slate-900 rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-[#0D47A1]/40 flex items-center justify-between gap-4 transition-all duration-200 hover:-translate-y-0.5"
+              className="group bg-unuha-green hover:bg-unuha-green-light text-white rounded-2xl p-6 shadow-md border border-unuha-green/40 flex items-center justify-between gap-4 transition-all duration-200 hover:-translate-y-0.5"
             >
               <div className="flex items-center gap-4 min-w-0">
-                <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200/80 flex items-center justify-center shrink-0">
-                  <Briefcase className="w-6 h-6 text-[#0D47A1]" />
+                <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0">
+                  <Briefcase className="w-6 h-6 text-unuha-gold" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-base sm:text-lg font-bold text-slate-900 group-hover:text-[#0D47A1] transition-colors">
+                  <p className="text-base sm:text-lg font-bold text-white">
                     Buka Pemantauan Kinerja
                   </p>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-xs text-emerald-50/90 mt-0.5">
                     Tinjau laporan kinerja Biro/Pusat/Lab dan sahkan dokumen PDF.
                   </p>
                 </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-slate-100 group-hover:bg-[#0D47A1] group-hover:text-white flex items-center justify-center shrink-0 transition-all">
-                <ArrowRight className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0 group-hover:translate-x-1 transition-transform">
+                <ArrowRight className="w-5 h-5 text-unuha-gold" />
               </div>
             </Link>
           </section>

@@ -181,18 +181,87 @@ export default function LoginPage() {
   const isFormDisabled = isLoading || isSuccess || retryCountdown > 0;
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col justify-between bg-slate-50 text-slate-900 overflow-x-hidden selection:bg-unuha-green selection:text-white">
+    <div className="relative min-h-screen w-full flex flex-col justify-between bg-gradient-to-br from-[#f8fafc] via-[#f4faf7] to-[#eaf5ef] text-slate-900 overflow-x-hidden selection:bg-unuha-green selection:text-white">
       {/* =========================================================================
-          DECORATIVE AMBIENT GLOW BACKGROUND (UNUHA Green & Gold)
+          DECORATIVE MINIMALIST CORNER ACCENTS (Hijau & Emas Minimalis)
           ========================================================================= */}
+
+      {/* 1. Sudut Kanan Atas: Garis Lengkung Minimalis & Glow Halus */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0 overflow-hidden z-0"
+        className="absolute top-0 right-0 pointer-events-none w-56 h-56 sm:w-72 sm:h-72 lg:w-[340px] lg:h-[340px] overflow-hidden z-0"
       >
-        {/* Pendaran cahaya unuha-green-light di pojok kanan atas */}
-        <div className="absolute -top-24 -right-24 w-[420px] h-[420px] sm:w-[540px] sm:h-[540px] rounded-full bg-unuha-green-light blur-[100px] opacity-20" />
-        {/* Pendaran halus unuha-gold di pojok kiri bawah */}
-        <div className="absolute -bottom-28 -left-24 w-[360px] h-[360px] sm:w-[460px] sm:h-[460px] rounded-full bg-unuha-gold blur-[120px] opacity-15" />
+        <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-unuha-green-light/10 blur-3xl" />
+        <svg
+          viewBox="0 0 360 360"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-full h-full"
+        >
+          <path
+            d="M150 0C175 115 245 185 360 210"
+            stroke="#0F5132"
+            strokeOpacity="0.14"
+            strokeWidth="1.5"
+            fill="none"
+          />
+          <path
+            d="M210 0C228 85 275 132 360 150"
+            stroke="#D4AF37"
+            strokeOpacity="0.45"
+            strokeWidth="2"
+            fill="none"
+          />
+          <path
+            d="M275 0C285 45 315 75 360 85V0H275Z"
+            fill="#0F5132"
+            fillOpacity="0.06"
+          />
+        </svg>
+      </div>
+
+      {/* 2. Sudut Kiri Bawah: Garis Lengkung Minimalis & Glow Halus */}
+      <div
+        aria-hidden="true"
+        className="absolute bottom-0 left-0 pointer-events-none w-56 h-48 sm:w-72 sm:h-56 lg:w-[320px] lg:h-[240px] overflow-hidden z-0"
+      >
+        <div className="absolute -bottom-16 -left-16 w-56 h-56 rounded-full bg-unuha-gold/10 blur-3xl" />
+        <svg
+          viewBox="0 0 340 260"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-full h-full"
+        >
+          <path
+            d="M0 75C105 90 175 155 205 260"
+            stroke="#0F5132"
+            strokeOpacity="0.14"
+            strokeWidth="1.5"
+            fill="none"
+          />
+          <path
+            d="M0 125C80 138 135 185 160 260"
+            stroke="#D4AF37"
+            strokeOpacity="0.45"
+            strokeWidth="2"
+            fill="none"
+          />
+          <path
+            d="M0 175C55 182 95 215 110 260H0V175Z"
+            fill="#0F5132"
+            fillOpacity="0.06"
+          />
+        </svg>
+      </div>
+
+      {/* 3. Pola Titik Grid (Dot Matrix Pattern Emas Lembut) */}
+      <div
+        aria-hidden="true"
+        className="hidden md:grid grid-cols-6 gap-2.5 absolute top-14 left-[35%] opacity-40 pointer-events-none z-0"
+      >
+        {Array.from({ length: 24 }).map((_, i) => (
+          <span key={i} className="w-1.5 h-1.5 rounded-full bg-unuha-gold" />
+        ))}
       </div>
 
       {/* =========================================================================
@@ -200,14 +269,14 @@ export default function LoginPage() {
           ========================================================================= */}
       <header className="relative z-10 w-full max-w-7xl mx-auto px-6 sm:px-12 pt-6 sm:pt-8 flex items-center justify-between">
         <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-unuha-green to-unuha-green-light flex items-center justify-center shadow-soft border border-white/40">
+          <div className="w-11 h-11 rounded-2xl bg-unuha-green-dark flex items-center justify-center shadow-md border border-unuha-gold/30">
             <Building2 className="w-6 h-6 text-unuha-gold" />
           </div>
           <div>
-            <span className="font-extrabold text-base sm:text-lg tracking-tight text-unuha-green block leading-tight">
+            <span className="font-extrabold text-base sm:text-lg tracking-tight text-unuha-green-dark block leading-tight">
               SIPASTI
             </span>
-            <span className="text-[11px] sm:text-xs text-slate-500 font-medium block leading-tight">
+            <span className="text-[11px] sm:text-xs text-slate-600 font-medium block leading-tight">
               Sistem Pelaporan Administrasi Terintegrasi
             </span>
           </div>
@@ -224,24 +293,24 @@ export default function LoginPage() {
           className="flex-1 w-full max-w-xl flex flex-col justify-center space-y-4"
         >
           <div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-800 tracking-tight">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-unuha-green-dark tracking-tight">
               Selamat Datang di
             </h1>
-            <div className="text-5xl sm:text-6xl lg:text-7xl font-black text-unuha-green tracking-tight leading-none mt-1">
+            <div className="text-5xl sm:text-6xl lg:text-7xl font-black text-unuha-green-dark tracking-tight leading-none mt-1">
               SIPASTI
             </div>
             {/* Garis Aksen Emas Horizontal */}
             <div className="w-20 h-1.5 bg-unuha-gold rounded-full mt-3.5" />
             <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-md mt-4">
-              Sistem pelaporan administrasi terintegrasi Universitas Nurul Huda
-              untuk mendukung pengelolaan data dan pelaporan yang lebih efektif.
+              Sistem pelaporan administrasi terintegrasi untuk mendukung
+              pengelolaan data dan pelaporan yang lebih efektif.
             </p>
           </div>
 
-          {/* Gambar Elemen Login (Laptop, Tanaman, dan Checklist Kelulusan) */}
+          {/* Gambar Elemen Login (Laptop, Tanaman, dan Checklist Hijau) */}
           <div className="relative pt-2 w-full max-w-lg">
             <Image
-              src="/images/elemen-login.png"
+              src="/images/elemen-login-new.png"
               alt="Ilustrasi Dasbor dan Pelaporan SIPASTI"
               width={560}
               height={350}
@@ -256,16 +325,14 @@ export default function LoginPage() {
           aria-label="Form Login"
           className="w-full max-w-md shrink-0"
         >
-          <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-soft border border-white/50 p-8 sm:p-10 space-y-6">
+          <div className="bg-white rounded-3xl shadow-soft border border-slate-100 p-8 sm:p-10 space-y-6">
             {/* Logo & Judul di Dalam Card */}
             <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-2xl bg-emerald-50/80 border border-emerald-100 flex items-center justify-center shadow-xs mb-3">
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-unuha-green to-unuha-green-light flex items-center justify-center shadow-sm">
-                  <Building2 className="w-6 h-6 text-unuha-gold" />
-                </div>
+              <div className="w-16 h-16 rounded-2xl bg-unuha-green-dark flex items-center justify-center shadow-md border border-unuha-gold/30 mb-3.5">
+                <Building2 className="w-8 h-8 text-unuha-gold" />
               </div>
 
-              <h2 className="text-xl sm:text-2xl font-black text-unuha-green tracking-tight">
+              <h2 className="text-xl sm:text-2xl font-black text-unuha-green-dark tracking-tight">
                 SIPASTI
               </h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
@@ -390,7 +457,7 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={isFormDisabled}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-unuha-green to-unuha-green-light hover:scale-[1.02] hover:shadow-lg hover:shadow-unuha-green/25 active:scale-[0.99] text-white font-bold py-3.5 px-4 text-sm shadow-md shadow-unuha-green/15 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-unuha-green/40 disabled:opacity-60 disabled:hover:scale-100 disabled:cursor-not-allowed cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-unuha-green-dark to-unuha-green hover:from-unuha-green hover:to-unuha-green-light hover:scale-[1.02] hover:shadow-lg hover:shadow-unuha-green/25 active:scale-[0.99] text-white font-bold py-3.5 px-4 text-sm shadow-md shadow-unuha-green/15 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-unuha-green/40 disabled:opacity-60 disabled:hover:scale-100 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {isLoading ? (
                     <>

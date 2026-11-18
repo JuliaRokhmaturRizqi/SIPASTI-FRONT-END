@@ -120,24 +120,24 @@ export default function AdminSidebar({
   const getSingleLinkClass = (isActive: boolean) =>
     `w-full flex items-center justify-between px-5 py-3 text-xs sm:text-sm font-medium border-l-4 transition-all duration-200 ${
       isActive
-        ? "bg-white/10 text-white border-[#FBC02D] font-semibold"
-        : "border-transparent text-slate-300 hover:bg-white/5 hover:text-white"
+        ? "bg-unuha-green/80 text-unuha-gold border-unuha-gold font-semibold"
+        : "border-transparent text-slate-300 hover:bg-unuha-green/60 hover:text-white"
     }`;
 
   const getGroupButtonClass = (isGroupActive: boolean, isOpen: boolean) =>
     `w-full flex items-center justify-between px-5 py-3 text-xs sm:text-sm font-semibold border-l-4 transition-all duration-200 cursor-pointer ${
       isGroupActive
-        ? "bg-white/8 text-white border-[#FBC02D]"
+        ? "bg-unuha-green/50 text-unuha-gold border-unuha-gold"
         : isOpen
-          ? "bg-white/5 text-white border-transparent"
-          : "border-transparent text-slate-300 hover:bg-white/5 hover:text-white"
+          ? "bg-unuha-green/40 text-white border-transparent"
+          : "border-transparent text-slate-300 hover:bg-unuha-green/60 hover:text-white"
     }`;
 
   const getSubLinkClass = (isActive: boolean) =>
-    `w-full flex items-center justify-between pl-11 pr-5 py-2.5 text-xs font-medium rounded-lg transition-all duration-200 ${
+    `w-full flex items-center justify-between pl-11 pr-5 py-2.5 text-xs font-medium rounded-lg border-l-4 transition-all duration-200 ${
       isActive
-        ? "bg-[#0D47A1]/80 text-white font-semibold shadow-2xs border border-blue-400/25"
-        : "text-slate-300/90 hover:bg-white/5 hover:text-white border border-transparent"
+        ? "bg-unuha-green text-unuha-gold border-unuha-gold font-semibold shadow-2xs"
+        : "border-transparent text-slate-300/90 hover:bg-unuha-green/50 hover:text-white"
     }`;
 
   return (
@@ -150,10 +150,10 @@ export default function AdminSidebar({
         />
       )}
 
-      {/* Sidebar Navigasi Kiri (Model Accordion) */}
+      {/* Sidebar Navigasi Kiri (Model Accordion - Tema UNUHA Authentic) */}
       <aside
         aria-label="Navigasi Utama Administrator"
-        className={`fixed lg:static inset-y-0 left-0 z-40 w-68 shrink-0 bg-gradient-to-b from-slate-900 via-blue-950 to-slate-900 text-white border-r border-white/10 flex flex-col justify-between transition-all duration-200 ${
+        className={`fixed lg:static inset-y-0 left-0 z-40 w-68 shrink-0 bg-unuha-green-dark text-white border-r border-white/10 flex flex-col justify-between transition-all duration-200 ${
           isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
@@ -162,14 +162,14 @@ export default function AdminSidebar({
           {/* Brand Header */}
           <div className="h-16 px-6 flex items-center justify-between border-b border-white/10">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center shadow-inner">
-                <Building2 className="w-5 h-5 text-[#FBC02D]" />
+              <div className="w-9 h-9 rounded-xl bg-unuha-green/60 border border-unuha-gold/30 flex items-center justify-center shadow-inner">
+                <Building2 className="w-5 h-5 text-unuha-gold" />
               </div>
               <div>
                 <span className="font-bold text-base tracking-tight text-white block leading-none">
                   SIPASTI
                 </span>
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-[#FBC02D] mt-0.5 block">
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-unuha-gold mt-0.5 block">
                   Admin Panel
                 </span>
               </div>
@@ -199,7 +199,7 @@ export default function AdminSidebar({
               <span className="flex items-center gap-3">
                 <LayoutDashboard
                   className={`w-4 h-4 shrink-0 transition-colors duration-200 ${
-                    isDashboardActive ? "text-[#FBC02D]" : "text-slate-400"
+                    isDashboardActive ? "text-unuha-gold" : "text-slate-400"
                   }`}
                 />
                 <span>Dashboard Utama</span>
@@ -221,7 +221,7 @@ export default function AdminSidebar({
                   <GraduationCap
                     className={`w-4 h-4 shrink-0 transition-colors duration-200 ${
                       isAkademikGroupActive || openMenu === "akademik"
-                        ? "text-[#FBC02D]"
+                        ? "text-unuha-gold"
                         : "text-slate-400"
                     }`}
                   />
@@ -229,7 +229,7 @@ export default function AdminSidebar({
                 </span>
                 <span className="flex items-center gap-2">
                   {pendingReviewCount > 0 && (
-                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#FBC02D] text-slate-950">
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-unuha-gold text-slate-950">
                       {pendingReviewCount}
                     </span>
                   )}
@@ -260,7 +260,7 @@ export default function AdminSidebar({
                         <span>Pemantauan Akademik</span>
                       </span>
                       {pendingReviewCount > 0 && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FBC02D] text-slate-950">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-unuha-gold text-slate-950">
                           {pendingReviewCount}
                         </span>
                       )}
@@ -309,7 +309,7 @@ export default function AdminSidebar({
                   <Briefcase
                     className={`w-4 h-4 shrink-0 transition-colors duration-200 ${
                       isKinerjaGroupActive || openMenu === "kinerja"
-                        ? "text-[#FBC02D]"
+                        ? "text-unuha-gold"
                         : "text-slate-400"
                     }`}
                   />
@@ -317,7 +317,7 @@ export default function AdminSidebar({
                 </span>
                 <span className="flex items-center gap-2">
                   {pendingUnitReviewCount > 0 && (
-                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#FBC02D] text-slate-950">
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-unuha-gold text-slate-950">
                       {pendingUnitReviewCount}
                     </span>
                   )}
@@ -348,7 +348,7 @@ export default function AdminSidebar({
                         <span>Pemantauan Kinerja</span>
                       </span>
                       {pendingUnitReviewCount > 0 && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FBC02D] text-slate-950">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-unuha-gold text-slate-950">
                           {pendingUnitReviewCount}
                         </span>
                       )}
@@ -397,7 +397,7 @@ export default function AdminSidebar({
                   <Settings
                     className={`w-4 h-4 shrink-0 transition-colors duration-200 ${
                       isSistemGroupActive || openMenu === "sistem"
-                        ? "text-[#FBC02D]"
+                        ? "text-unuha-gold"
                         : "text-slate-400"
                     }`}
                   />
@@ -439,19 +439,19 @@ export default function AdminSidebar({
         {/* Bagian Bawah: Profil Admin (Dropdown Ubah Password & Logout) */}
         <div
           ref={profileMenuRef}
-          className="relative border-t border-white/10 bg-slate-950/30 p-4"
+          className="relative border-t border-white/10 bg-black/20 p-4"
         >
           {isProfileMenuOpen && (
-            <div className="absolute left-4 right-4 bottom-full mb-2 rounded-xl bg-slate-900 border border-white/15 shadow-2xl p-1.5 space-y-1 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
+            <div className="absolute left-4 right-4 bottom-full mb-2 rounded-xl bg-unuha-green-dark border border-white/15 shadow-2xl p-1.5 space-y-1 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
               <button
                 type="button"
                 onClick={() => {
                   setIsProfileMenuOpen(false);
                   setIsUbahPasswordOpen(true);
                 }}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-semibold text-slate-200 hover:bg-white/10 hover:text-white transition cursor-pointer"
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-semibold text-slate-200 hover:bg-unuha-green hover:text-white transition cursor-pointer"
               >
-                <KeyRound className="w-4 h-4 text-[#FBC02D] shrink-0" />
+                <KeyRound className="w-4 h-4 text-unuha-gold shrink-0" />
                 <span>Ubah Password</span>
               </button>
               <button
@@ -473,22 +473,22 @@ export default function AdminSidebar({
             type="button"
             onClick={() => setIsProfileMenuOpen((prev) => !prev)}
             aria-expanded={isProfileMenuOpen}
-            className="w-full px-3 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center gap-3 text-left transition cursor-pointer"
+            className="w-full px-3 py-2.5 rounded-xl bg-white/5 hover:bg-unuha-green/60 border border-white/10 flex items-center gap-3 text-left transition cursor-pointer"
           >
-            <div className="w-8 h-8 rounded-lg bg-[#FBC02D]/15 border border-[#FBC02D]/40 flex items-center justify-center text-[#FBC02D] shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-unuha-gold/15 border border-unuha-gold/40 flex items-center justify-center text-unuha-gold shrink-0">
               <ShieldCheck className="w-4 h-4" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-white truncate">
+              <p className="text-xs font-bold text-unuha-gold truncate">
                 {safeUsername}
               </p>
-              <p className="text-[10px] text-slate-400 truncate">
+              <p className="text-[10px] text-slate-300 truncate">
                 Otoritas Administrator
               </p>
             </div>
             <ChevronUp
               className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${
-                isProfileMenuOpen ? "rotate-180 text-white" : ""
+                isProfileMenuOpen ? "rotate-180 text-unuha-gold" : ""
               }`}
             />
           </button>
